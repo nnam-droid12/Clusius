@@ -44,7 +44,9 @@ class BenchmarkRunConfig:
     request_timeout_s: float = 120.0
 
 
-async def run_benchmark(config: BenchmarkRunConfig) -> tuple[BenchmarkResult, list[RequestMetric], list[RequestFailure]]:
+async def run_benchmark(
+    config: BenchmarkRunConfig,
+) -> tuple[BenchmarkResult, list[RequestMetric], list[RequestFailure]]:
     load_config = LoadTestConfig(
         base_url=config.base_url,
         model=config.model,
@@ -103,9 +105,16 @@ def write_raw_metrics_csv(metrics: list[RequestMetric], out_path: Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["ttft_s", "total_latency_s", "completion_tokens", "inter_token_latencies_s"])
+        writer.writerow(
+            ["ttft_s", "total_latency_s", "completion_tokens", "inter_token_latencies_s"]
+        )
         for m in metrics:
             writer.writerow(
-                [m.ttft_s, m.total_latency_s, m.completion_tokens, json.dumps(m.inter_token_latencies_s)]
+                [
+                    m.ttft_s,
+                    m.total_latency_s,
+                    m.completion_tokens,
+                    json.dumps(m.inter_token_latencies_s),
+                ]
             )
     return out_path

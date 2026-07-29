@@ -9,7 +9,12 @@ import asyncio
 import subprocess
 from pathlib import Path
 
-from clusius_core.bench.runner import BenchmarkRunConfig, run_benchmark, write_raw_metrics_csv, write_result
+from clusius_core.bench.runner import (
+    BenchmarkRunConfig,
+    run_benchmark,
+    write_raw_metrics_csv,
+    write_result,
+)
 
 
 def _current_commit_sha() -> str:
@@ -26,9 +31,15 @@ def _load_prompts(path: Path) -> list[str]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="clusius-bench")
-    parser.add_argument("--base-url", required=True, help="OpenAI-compatible base URL, e.g. http://localhost:8090/v1")
+    parser.add_argument(
+        "--base-url",
+        required=True,
+        help="OpenAI-compatible base URL, e.g. http://localhost:8090/v1",
+    )
     parser.add_argument("--model", required=True)
-    parser.add_argument("--prompts", required=True, type=Path, help="Path to a newline-delimited prompt file")
+    parser.add_argument(
+        "--prompts", required=True, type=Path, help="Path to a newline-delimited prompt file"
+    )
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--backend", required=True, choices=["llamacpp", "vllm"])
     parser.add_argument("--quant", required=True)

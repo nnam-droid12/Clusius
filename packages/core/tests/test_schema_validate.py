@@ -1,8 +1,8 @@
 import pytest
-from jsonschema import ValidationError
-
 from clusius_core.bench.schema_validate import validate_result
 from clusius_core.models import BenchmarkResult, LatencyPercentiles, ThroughputMetrics, utcnow
+from jsonschema import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 
 def _valid_result(**overrides) -> BenchmarkResult:
@@ -37,13 +37,13 @@ def test_schema_rejects_bad_arch_value() -> None:
     dumped = result.to_schema_dict()
     dumped["arch"] = "risc-v"
 
-    from clusius_core.bench.schema_validate import _load_schema
     import jsonschema
+    from clusius_core.bench.schema_validate import _load_schema
 
     with pytest.raises(ValidationError):
         jsonschema.validate(instance=dumped, schema=_load_schema())
 
 
 def test_schema_rejects_accuracy_above_one() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(PydanticValidationError):
         _valid_result(accuracy_score=1.5)

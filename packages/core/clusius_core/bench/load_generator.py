@@ -29,7 +29,9 @@ class LoadTestConfig:
     request_timeout_s: float = 120.0
 
 
-async def _stream_one(client: httpx.AsyncClient, config: LoadTestConfig, prompt: str) -> RequestMetric:
+async def _stream_one(
+    client: httpx.AsyncClient, config: LoadTestConfig, prompt: str
+) -> RequestMetric:
     start = time.perf_counter()
     first_token_at: float | None = None
     last_token_at = start
@@ -78,7 +80,9 @@ async def _stream_one(client: httpx.AsyncClient, config: LoadTestConfig, prompt:
     )
 
 
-async def run_load_test(config: LoadTestConfig) -> tuple[list[RequestMetric], list[RequestFailure], float]:
+async def run_load_test(
+    config: LoadTestConfig,
+) -> tuple[list[RequestMetric], list[RequestFailure], float]:
     """Returns (successful request metrics, failures, wall-clock seconds for the whole
     batch) so throughput can be computed against real elapsed time, not summed
     per-request latency."""

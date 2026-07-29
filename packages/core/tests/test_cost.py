@@ -1,5 +1,4 @@
 import pytest
-
 from clusius_core.bench.cost import cost_per_1m_tokens, cost_reduction_pct
 
 

@@ -9,7 +9,6 @@ import json
 
 import httpx
 import pytest
-
 from clusius_core.bench.load_generator import LoadTestConfig, run_load_test
 
 
@@ -37,7 +36,9 @@ def patched_client(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def fake_async_client(*args, **kwargs):
         kwargs.pop("base_url", None)
-        return real_async_client(transport=httpx.ASGITransport(app=_fake_openai_app), base_url="http://test", **kwargs)
+        return real_async_client(
+            transport=httpx.ASGITransport(app=_fake_openai_app), base_url="http://test", **kwargs
+        )
 
     monkeypatch.setattr(httpx, "AsyncClient", fake_async_client)
 
