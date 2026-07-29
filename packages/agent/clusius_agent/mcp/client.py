@@ -16,8 +16,14 @@ async def _call_tool(module: str, tool_name: str, arguments: dict[str, Any]) -> 
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.call_tool(tool_name, arguments)
-            if result.isError:
+            if result.is_error:
                 raise RuntimeError(f"MCP tool {tool_name!r} in {module!r} returned an error: {result.content}")
+            if result.structured_content is not None:
+                # Non-object return types (e.g. a bare list) are wrapped by the SDK
+                # as {"result": <value>} to satisfy the tool output JSON schema.
+                if set(result.structured_content.keys()) == {"result"}:
+                    return result.structured_content["result"]
+                return result.structured_content
             (content,) = result.content
             return json.loads(content.text)
 

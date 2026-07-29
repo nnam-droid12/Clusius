@@ -13,7 +13,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -79,10 +79,26 @@ class DocIndex:
         return results
 
 
-def build_server(docs_path: str | None = None) -> FastMCP:
-    resolved = Path(docs_path or os.environ.get("CLUSIUS_AGENT_DOCS_PATH", "bench/datasets/docs"))
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _resolve_docs_path(docs_path: str | None) -> Path:
+    configured = Path(docs_path or os.environ.get("CLUSIUS_AGENT_DOCS_PATH", "bench/datasets/docs"))
+    if configured.is_absolute() or configured.exists():
+        return configured
+    # Relative paths are meant to be repo-root-relative (matching docker-compose's
+    # build context), but this module may be imported with a different CWD (tests,
+    # a dev shell in packages/agent) — fall back to resolving against the repo root.
+    from_repo_root = _REPO_ROOT / configured
+    if from_repo_root.exists():
+        return from_repo_root
+    return configured
+
+
+def build_server(docs_path: str | None = None) -> MCPServer:
+    resolved = _resolve_docs_path(docs_path)
     index = DocIndex(resolved)
-    server = FastMCP("clusius-docs")
+    server = MCPServer("clusius-docs")
 
     @server.tool()
     def search_docs(query: str, top_k: int = 3) -> list[dict[str, object]]:

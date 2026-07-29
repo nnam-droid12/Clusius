@@ -7,9 +7,9 @@ so a flaky connection degrades the agent's retrieval quality instead of crashing
 
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
-server = FastMCP("clusius-search")
+server = MCPServer("clusius-search")
 
 
 @server.tool()
