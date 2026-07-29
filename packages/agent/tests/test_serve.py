@@ -1,9 +1,8 @@
 from unittest.mock import AsyncMock
 
-from fastapi.testclient import TestClient
-
 from clusius_agent import serve
 from clusius_agent.models import PipelineResult, StageTrace
+from fastapi.testclient import TestClient
 
 
 def test_health() -> None:
@@ -21,7 +20,10 @@ def test_chat_completions_returns_openai_shaped_response(monkeypatch) -> None:
         route="retrieve_docs",
         answer="KleidiAI is an Arm CPU kernel library.",
         retrieved=[],
-        trace=[StageTrace(stage="route", duration_ms=1.0), StageTrace(stage="generate", duration_ms=5.0)],
+        trace=[
+            StageTrace(stage="route", duration_ms=1.0),
+            StageTrace(stage="generate", duration_ms=5.0),
+        ],
     )
     monkeypatch.setattr(serve._pipeline, "run", AsyncMock(return_value=fake_result))
 

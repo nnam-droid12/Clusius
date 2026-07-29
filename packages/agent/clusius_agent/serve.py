@@ -62,9 +62,7 @@ async def chat_completions(request: ChatCompletionRequest) -> ChatCompletionResp
         id=f"clusius-{uuid.uuid4().hex}",
         created=int(time.time()),
         model=request.model,
-        choices=[
-            ChatChoice(index=0, message=ChatMessage(role="assistant", content=result.answer))
-        ],
+        choices=[ChatChoice(index=0, message=ChatMessage(role="assistant", content=result.answer))],
         clusius_trace=[stage.model_dump() for stage in result.trace],
     )
 

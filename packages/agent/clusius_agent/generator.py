@@ -27,7 +27,9 @@ async def generate(
 ) -> str:
     owns_client = client is None
     active_client = client or AsyncOpenAI(
-        base_url=settings.generator_base_url, api_key="not-needed", timeout=settings.request_timeout_s
+        base_url=settings.generator_base_url,
+        api_key="not-needed",
+        timeout=settings.request_timeout_s,
     )
     try:
         response = await active_client.chat.completions.create(

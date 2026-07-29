@@ -1,5 +1,4 @@
 import pytest
-
 from clusius_agent import generator, router
 from clusius_agent.models import RouterDecision
 from clusius_agent.pipeline import Pipeline
@@ -27,7 +26,9 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> tuple[Pipeline, FakeMCPClient]:
     return p, fake_mcp
 
 
-async def test_direct_route_skips_retrieval(monkeypatch: pytest.MonkeyPatch, pipeline: tuple) -> None:
+async def test_direct_route_skips_retrieval(
+    monkeypatch: pytest.MonkeyPatch, pipeline: tuple
+) -> None:
     p, fake_mcp = pipeline
 
     async def fake_classify(query, settings, client=None):
@@ -48,7 +49,9 @@ async def test_direct_route_skips_retrieval(monkeypatch: pytest.MonkeyPatch, pip
     assert [stage.stage for stage in result.trace] == ["route", "generate"]
 
 
-async def test_retrieve_docs_route_calls_docs_search(monkeypatch: pytest.MonkeyPatch, pipeline: tuple) -> None:
+async def test_retrieve_docs_route_calls_docs_search(
+    monkeypatch: pytest.MonkeyPatch, pipeline: tuple
+) -> None:
     p, fake_mcp = pipeline
 
     async def fake_classify(query, settings, client=None):
@@ -69,7 +72,9 @@ async def test_retrieve_docs_route_calls_docs_search(monkeypatch: pytest.MonkeyP
     assert [stage.stage for stage in result.trace] == ["route", "retrieve_docs", "generate"]
 
 
-async def test_web_search_route_calls_web_search(monkeypatch: pytest.MonkeyPatch, pipeline: tuple) -> None:
+async def test_web_search_route_calls_web_search(
+    monkeypatch: pytest.MonkeyPatch, pipeline: tuple
+) -> None:
     p, fake_mcp = pipeline
 
     async def fake_classify(query, settings, client=None):

@@ -29,7 +29,9 @@ the local document store.
 """
 
 
-async def classify(query: str, settings: AgentSettings, client: AsyncOpenAI | None = None) -> RouterDecision:
+async def classify(
+    query: str, settings: AgentSettings, client: AsyncOpenAI | None = None
+) -> RouterDecision:
     owns_client = client is None
     active_client = client or AsyncOpenAI(
         base_url=settings.router_base_url, api_key="not-needed", timeout=settings.request_timeout_s

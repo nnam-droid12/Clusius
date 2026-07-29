@@ -17,7 +17,9 @@ async def _call_tool(module: str, tool_name: str, arguments: dict[str, Any]) -> 
             await session.initialize()
             result = await session.call_tool(tool_name, arguments)
             if result.is_error:
-                raise RuntimeError(f"MCP tool {tool_name!r} in {module!r} returned an error: {result.content}")
+                raise RuntimeError(
+                    f"MCP tool {tool_name!r} in {module!r} returned an error: {result.content}"
+                )
             if result.structured_content is not None:
                 # Non-object return types (e.g. a bare list) are wrapped by the SDK
                 # as {"result": <value>} to satisfy the tool output JSON schema.
@@ -43,4 +45,6 @@ class MCPToolClient:
         return await _call_tool(self.docs_module, "search_docs", {"query": query, "top_k": top_k})
 
     async def web_search(self, query: str, max_results: int = 5) -> list[dict[str, Any]]:
-        return await _call_tool(self.search_module, "web_search", {"query": query, "max_results": max_results})
+        return await _call_tool(
+            self.search_module, "web_search", {"query": query, "max_results": max_results}
+        )

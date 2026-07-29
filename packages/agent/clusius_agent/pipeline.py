@@ -16,7 +16,9 @@ from clusius_agent.settings import AgentSettings
 
 
 class Pipeline:
-    def __init__(self, settings: AgentSettings | None = None, mcp_client: MCPToolClient | None = None) -> None:
+    def __init__(
+        self, settings: AgentSettings | None = None, mcp_client: MCPToolClient | None = None
+    ) -> None:
         self.settings = settings or AgentSettings()
         self.mcp_client = mcp_client or MCPToolClient()
 
@@ -47,9 +49,13 @@ class Pipeline:
             )
         elif decision.route == "web_search":
             start = time.perf_counter()
-            hits = await self.mcp_client.web_search(query, max_results=self.settings.web_search_max_results)
+            hits = await self.mcp_client.web_search(
+                query, max_results=self.settings.web_search_max_results
+            )
             retrieved = [
-                RetrievedChunk(source=hit["url"], text=hit["snippet"], score=1.0) for hit in hits if hit.get("url")
+                RetrievedChunk(source=hit["url"], text=hit["snippet"], score=1.0)
+                for hit in hits
+                if hit.get("url")
             ]
             trace.append(
                 StageTrace(
@@ -62,7 +68,9 @@ class Pipeline:
         start = time.perf_counter()
         answer = await generator.generate(query, retrieved, self.settings)
         trace.append(
-            StageTrace(stage="generate", duration_ms=(time.perf_counter() - start) * 1000, metadata={})
+            StageTrace(
+                stage="generate", duration_ms=(time.perf_counter() - start) * 1000, metadata={}
+            )
         )
 
         return PipelineResult(
