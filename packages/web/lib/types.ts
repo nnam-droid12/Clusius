@@ -59,9 +59,18 @@ export interface ResultRow {
   created_at: string;
 }
 
+export interface ArtifactRow {
+  id: string;
+  kind: string;
+  path: string | null;
+  digest: string | null;
+  created_at: string;
+}
+
 export interface RunDetail extends Run {
   trials: Trial[];
   results: ResultRow[];
+  artifacts: ArtifactRow[];
 }
 
 export interface BenchmarkResult {
