@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+      - name: Install dependencies
+        run: uv sync --all-packages
+      - name: Lint
+        run: uv run ruff check .
+      - name: Typecheck
+        run: uv run mypy packages/core packages/api packages/agent
+      - name: Test
+        run: uv run pytest packages/core/tests packages/api/tests packages/agent/tests
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+
+  arm64-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build llama.cpp+KleidiAI arm64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/llamacpp-kleidi.Dockerfile
+          platforms: linux/arm64
+          push: false
+      - name: Build vLLM+oneDNN/ACL arm64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/vllm-acl.Dockerfile
+          platforms: linux/arm64
+          push: false
