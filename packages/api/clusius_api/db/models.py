@@ -6,7 +6,7 @@ directly, only this API's REST/SSE surface.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
@@ -18,7 +18,7 @@ def _uuid() -> str:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -51,6 +51,11 @@ class Run(Base):
     sla_accuracy_floor: Mapped[float] = mapped_column(Float)
     cost_ceiling_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     search_budget_trials: Mapped[int] = mapped_column(Integer, default=20)
+
+    target_base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    target_instance_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    target_arch: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    target_price_per_hour: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     selected_backend: Mapped[str | None] = mapped_column(String(16), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
