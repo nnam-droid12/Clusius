@@ -16,6 +16,11 @@ dependencies = [
     "jsonschema>=4.20",
 ]
 
+[project.optional-dependencies]
+# Only needed on hosts that actually run the vLLM INT4 quantization step (the build
+# host, not every environment importing clusius_core) — see migrate/quantize.py.
+vllm-quant = ["llmcompressor>=0.3"]
+
 [project.scripts]
 clusius-bench = "clusius_core.bench.cli:main"
 
