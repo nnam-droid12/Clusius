@@ -76,3 +76,18 @@ async def test_get_result_404_before_any_result_recorded(client) -> None:
     response = await client.get(f"/runs/{run_id}/result.json")
 
     assert response.status_code == 404
+
+
+async def test_get_report_404_before_any_report_generated(client) -> None:
+    payload = {
+        "workload_name": "showcase-agent",
+        "model_ref": "qwen2.5-7b-instruct",
+        "sla_p95_latency_ms": 2000.0,
+        "sla_accuracy_floor": 0.9,
+    }
+    created = await client.post("/runs", json=payload)
+    run_id = created.json()["id"]
+
+    response = await client.get(f"/runs/{run_id}/report")
+
+    assert response.status_code == 404

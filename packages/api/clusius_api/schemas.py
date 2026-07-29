@@ -75,6 +75,17 @@ class ResultOut(BaseModel):
     created_at: datetime
 
 
+class ArtifactOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    kind: str
+    path: str | None
+    digest: str | None
+    created_at: datetime
+
+
 class RunDetailOut(RunOut):
     trials: list[TrialOut] = []
     results: list[ResultOut] = []
+    artifacts: list[ArtifactOut] = []

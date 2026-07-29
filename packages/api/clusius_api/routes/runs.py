@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.responses import StreamingResponse
 
-from clusius_api.db.models import Result, Run, Workload
+from clusius_api.db.models import Artifact, Result, Run, Workload
 from clusius_api.db.session import get_session
 from clusius_api.jobs.queue import get_arq_pool, run_events_channel
 from clusius_api.schemas import RunCreate, RunDetailOut, RunOut
@@ -58,7 +58,7 @@ async def get_run(run_id: str, session: AsyncSession = Depends(get_session)) -> 
     result = await session.execute(
         select(Run)
         .where(Run.id == run_id)
-        .options(selectinload(Run.trials), selectinload(Run.results))
+        .options(selectinload(Run.trials), selectinload(Run.results), selectinload(Run.artifacts))
     )
     run = result.scalar_one_or_none()
     if run is None:
@@ -95,6 +95,25 @@ async def run_events(
             await pubsub.aclose()
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.get("/runs/{run_id}/report")
+async def get_run_report(run_id: str, session: AsyncSession = Depends(get_session)) -> dict:
+    result = await session.execute(
+        select(Artifact)
+        .where(Artifact.run_id == run_id, Artifact.kind == "report_markdown")
+        .order_by(Artifact.created_at.desc())
+    )
+    row = result.scalars().first()
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "no migration report generated for this run yet — the report stage needs a "
+                "completed benchmark against both an x86 baseline and an Arm winner"
+            ),
+        )
+    return {"content": row.content, "created_at": row.created_at.isoformat()}
 
 
 @router.get("/runs/{run_id}/result.json")
