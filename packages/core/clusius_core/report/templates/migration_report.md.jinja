@@ -1,0 +1,74 @@
+# Migration Report: {{ workload_name }}
+
+Generated {{ generated_at }} · commit `{{ commit_sha }}`
+
+## Baseline
+
+| | |
+|---|---|
+| Model | `{{ model_ref }}` |
+| Instance | `{{ baseline.instance_type }}` ({{ baseline.arch }}) |
+| Threads | {{ baseline.threads }} |
+| Backend | {{ baseline.backend }} ({{ baseline.quant }}) |
+| Throughput | {{ "%.1f"|format(baseline.throughput.tokens_per_second) }} tok/s |
+| p95 latency | {{ "%.0f"|format(baseline.latency_ms.p95) }} ms |
+| Cost / 1M tokens | ${{ "%.4f"|format(baseline.cost_per_1m_tokens) }} |
+
+## Changes made
+
+{% if analysis_blockers %}
+Analysis flagged {{ analysis_blockers|length }} x86-only assumption(s) that were resolved during migration:
+
+{% for finding in analysis_blockers %}
+- **{{ finding.category }}** (`{{ finding.file }}:{{ finding.line }}`): {{ finding.message }}
+{% endfor %}
+{% else %}
+No x86-only blockers were found in the workload's build configuration.
+{% endif %}
+
+Optimizations applied on the Arm64 build:
+
+{% for item in optimizations_applied %}
+- {{ item }}
+{% endfor %}
+
+## Backend selection
+
+{{ backend_justification }}
+
+## Chosen configuration
+
+| | |
+|---|---|
+| Instance | `{{ winner.instance_type }}` ({{ winner.arch }}) |
+| Backend | {{ winner_config.backend }} |
+| Quantization | {{ winner_config.quant }} |
+| Threads | {{ winner_config.threads }} |
+| Core pinning | {{ winner_config.core_pinning }} |
+| Batch size | {{ winner_config.batch_size }} |
+| KV cache precision | {{ winner_config.kv_cache_precision }} |
+| Context length | {{ winner_config.context_length }} |
+
+## Results
+
+| Metric | x86 baseline | Arm winner | Delta |
+|---|---|---|---|
+| Throughput (tok/s) | {{ "%.1f"|format(baseline.throughput.tokens_per_second) }} | {{ "%.1f"|format(winner.throughput.tokens_per_second) }} | {{ "%+.1f%%"|format(throughput_delta_pct) }} |
+| p95 latency (ms) | {{ "%.0f"|format(baseline.latency_ms.p95) }} | {{ "%.0f"|format(winner.latency_ms.p95) }} | {{ "%+.1f%%"|format(latency_delta_pct) }} |
+| Cost / 1M tokens | ${{ "%.4f"|format(baseline.cost_per_1m_tokens) }} | ${{ "%.4f"|format(winner.cost_per_1m_tokens) }} | {{ "%+.1f%%"|format(cost_delta_pct) }} |
+| Accuracy | {{ "%.1f%%"|format(baseline.accuracy_score * 100) }} | {{ "%.1f%%"|format(winner.accuracy_score * 100) }} | {{ "%+.1f"|format(accuracy_delta_pp) }}pp |
+
+{% if pareto_chart_path %}
+![Pareto frontier]({{ pareto_chart_path }})
+{% endif %}
+{% if cost_chart_path %}
+![Cost and throughput comparison]({{ cost_chart_path }})
+{% endif %}
+
+## Why this configuration
+
+- **Accuracy**: {{ "%.1f%%"|format(winner.accuracy_score * 100) }}, against a floor of {{ "%.1f%%"|format(accuracy_floor * 100) }}.
+- **Latency**: {{ "%.0f"|format(winner.latency_ms.p95) }}ms p95, against an SLA of {{ "%.0f"|format(latency_sla_ms) }}ms.
+- **Cost**: {{ "%+.1f%%"|format(cost_delta_pct) }} vs. the x86 baseline at {{ "%.1f"|format(search_trial_count) }} trials searched.
+
+Full trial history, raw per-request data, and the machine-readable result are available in `result.json` alongside this report.
