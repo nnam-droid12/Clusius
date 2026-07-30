@@ -11,3 +11,10 @@ class ApiSettings(BaseSettings):
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+
+    # Comma-separated list of origins allowed to call this API from a browser.
+    cors_allow_origins: str = "http://localhost:3000"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allow_origins.split(",") if origin.strip()]

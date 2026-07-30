@@ -5,6 +5,12 @@ async def test_health(client) -> None:
     assert response.json() == {"status": "ok"}
 
 
+async def test_cors_allows_configured_origin(client) -> None:
+    response = await client.get("/health", headers={"Origin": "http://localhost:3000"})
+
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
 async def test_create_run_returns_queued_run(client) -> None:
     payload = {
         "workload_name": "showcase-agent",
