@@ -11,6 +11,16 @@ from __future__ import annotations
 from clusius_core.migrate.ssh_runner import TargetRunner
 
 
+def ensure_git_lfs_installed(runner: TargetRunner) -> None:
+    check = runner.run("command -v git-lfs", raise_on_failure=False)
+    if check.ok:
+        return
+    runner.run(
+        "sudo apt-get update && sudo apt-get install -y --no-install-recommends git-lfs",
+        raise_on_failure=True,
+    )
+
+
 def prepare_gguf_models(
     runner: TargetRunner,
     image_tag: str,
@@ -20,6 +30,7 @@ def prepare_gguf_models(
 ) -> dict[str, str]:
     """Downloads `hf_model_id`, converts it to fp16 GGUF, then quantizes it to each of
     `quant_types`. Returns `{quant_type: remote_gguf_path}`."""
+    ensure_git_lfs_installed(runner)
     runner.run(f"sudo mkdir -p {workdir} && sudo chmod 777 {workdir}", raise_on_failure=True)
 
     model_dir = f"{workdir}/hf-src"

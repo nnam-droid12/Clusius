@@ -1,16 +1,38 @@
 from __future__ import annotations
 
-from clusius_core.migrate.model_prep import prepare_gguf_models
+from clusius_core.migrate.model_prep import ensure_git_lfs_installed, prepare_gguf_models
 from clusius_core.migrate.ssh_runner import CommandResult
 
 
 class FakeRunner:
-    def __init__(self) -> None:
+    def __init__(self, scripted: dict[str, CommandResult] | None = None) -> None:
         self.commands: list[str] = []
+        self._scripted = scripted or {}
 
     def run(self, command: str, raise_on_failure: bool = True) -> CommandResult:
         self.commands.append(command)
+        for substring, result in self._scripted.items():
+            if substring in command:
+                return result
         return CommandResult(command=command, exit_code=0, stdout="", stderr="")
+
+
+def test_ensure_git_lfs_installed_skips_when_present() -> None:
+    runner = FakeRunner(
+        scripted={"command -v git-lfs": CommandResult("", 0, "/usr/bin/git-lfs", "")}
+    )
+
+    ensure_git_lfs_installed(runner)  # type: ignore[arg-type]
+
+    assert not any("apt-get install" in c for c in runner.commands)
+
+
+def test_ensure_git_lfs_installed_installs_when_missing() -> None:
+    runner = FakeRunner(scripted={"command -v git-lfs": CommandResult("", 1, "", "not found")})
+
+    ensure_git_lfs_installed(runner)  # type: ignore[arg-type]
+
+    assert any("apt-get install" in c and "git-lfs" in c for c in runner.commands)
 
 
 def test_prepare_gguf_models_clones_converts_and_quantizes() -> None:
