@@ -62,7 +62,6 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const { data: run, isLoading } = useRun(id);
   const events = useRunEvents(id);
-  const latestEvent = events[events.length - 1];
 
   const reportQuery = useQuery({
     queryKey: ["runs", id, "report"],
@@ -82,8 +81,6 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
   const baselineResult = run.results.find((r) => r.kind === "baseline_x86");
   const winnerResult = run.results.find((r) => r.kind === "arm_winner");
-  const currentStage = latestEvent?.stage ?? run.stage;
-  const currentStatus = (latestEvent?.status as string | undefined) ?? run.status;
 
   return (
     <div className="min-h-screen">
@@ -113,7 +110,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
         </div>
 
         <div className="rounded-lg border border-border bg-surface p-6">
-          <StageTimeline currentStage={currentStage} runStatus={currentStatus} />
+          <StageTimeline run={run} events={events} />
         </div>
 
         {baselineResult && winnerResult && (
