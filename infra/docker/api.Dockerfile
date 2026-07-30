@@ -22,6 +22,10 @@ WORKDIR /workspace
 COPY --from=build /workspace/.venv /workspace/.venv
 COPY --from=build /workspace/packages/core /workspace/packages/core
 COPY --from=build /workspace/packages/api /workspace/packages/api
+# clusius_core.pipeline needs this at runtime: it builds the backend image on the SSH
+# targets from this Dockerfile (see LLAMACPP_DOCKERFILE in
+# packages/core/clusius_core/pipeline.py).
+COPY infra/docker/llamacpp-kleidi.Dockerfile infra/docker/llamacpp-kleidi.Dockerfile
 
 ENV PATH="/workspace/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
