@@ -55,9 +55,13 @@ WORKDIR /app
 COPY --from=build /src/build/bin/llama-server /src/build/bin/llama-quantize /src/build/bin/llama-cli /app/
 COPY --from=build /src/convert_hf_to_gguf.py /app/
 COPY --from=build /src/gguf-py /app/gguf-py
-COPY --from=build /src/requirements/requirements-convert_hf_to_gguf.txt /app/requirements-convert.txt
+# requirements-convert_hf_to_gguf.txt pulls in requirements-convert_legacy_llama.txt
+# via a relative `-r ./...` include, so the whole directory needs to come along, not
+# just the one file (a single-file copy fails at install time with "no such file").
+COPY --from=build /src/requirements /app/requirements
 
-RUN pip install --break-system-packages --no-cache-dir -r /app/requirements-convert.txt
+RUN pip install --break-system-packages --no-cache-dir \
+        -r /app/requirements/requirements-convert_hf_to_gguf.txt
 
 ENV LLAMA_ARG_HOST=0.0.0.0
 EXPOSE 8080
