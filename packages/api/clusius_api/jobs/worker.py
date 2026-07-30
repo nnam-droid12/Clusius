@@ -16,3 +16,6 @@ from clusius_api.settings import ApiSettings
 class WorkerSettings:
     functions = [run_pipeline]
     redis_settings = RedisSettings.from_dsn(ApiSettings().redis_url)
+    # The full SSH pipeline drives a single shared C4A + x86 VM pair — two runs
+    # executing concurrently would race on the same container names and ports.
+    max_jobs = 1

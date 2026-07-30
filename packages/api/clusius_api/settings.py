@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ApiSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     database_url: str = "postgresql+asyncpg://clusius:clusius@localhost:5432/clusius"
     redis_url: str = "redis://localhost:6379/0"
