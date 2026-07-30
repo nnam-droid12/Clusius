@@ -1,13 +1,19 @@
 # syntax=docker/dockerfile:1
-# llama.cpp built for linux/arm64 with KleidiAI CPU kernels linked in, plus the Python
-# GGUF conversion/quantization tooling. Pinned against a known-good llama.cpp commit so
-# the KleidiAI CMake flag below (`GGML_CPU_KLEIDIAI`, see ggml/src/ggml-cpu/CMakeLists.txt)
+# llama.cpp with KleidiAI CPU kernels linked in (Arm), plus the Python GGUF
+# conversion/quantization tooling. The same recipe builds the x86 baseline with
+# ENABLE_KLEIDIAI=OFF, so the Arm-vs-x86 comparison is the identical build minus the
+# one Arm-specific kernel flag. Pinned against a known-good llama.cpp commit so the
+# KleidiAI CMake flag below (`GGML_CPU_KLEIDIAI`, see ggml/src/ggml-cpu/CMakeLists.txt)
 # is verified rather than guessed — re-check that flag name if bumping the pin.
 ARG UBUNTU_VERSION=24.04
 ARG LLAMA_CPP_COMMIT=caa596ab3f0f8768ee326d6e3d5d39782194676c
+# KleidiAI's kernels are Arm-only; toggle this off when building the same recipe on
+# an x86 baseline so both sides of the benchmark come from one Dockerfile.
+ARG ENABLE_KLEIDIAI=ON
 
 FROM docker.io/ubuntu:${UBUNTU_VERSION} AS build
 ARG LLAMA_CPP_COMMIT
+ARG ENABLE_KLEIDIAI
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git ca-certificates \
@@ -33,7 +39,7 @@ RUN git init -q \
 RUN cmake -S . -B build \
         -DCMAKE_BUILD_TYPE=Release \
         -DGGML_NATIVE=ON \
-        -DGGML_CPU_KLEIDIAI=ON \
+        -DGGML_CPU_KLEIDIAI=${ENABLE_KLEIDIAI} \
         -DLLAMA_BUILD_TESTS=OFF \
         -DLLAMA_BUILD_EXAMPLES=OFF \
         -DLLAMA_BUILD_UI=OFF \
