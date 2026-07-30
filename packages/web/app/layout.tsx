@@ -5,7 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Clusius",
-  description: "An agent that migrates AI inference workloads to Arm64 and proves the win with measured numbers.",
+  description:
+    "An agent that migrates AI inference workloads to Arm64 and proves the win with measured numbers.",
 };
 
 const THEME_INIT_SCRIPT = `

@@ -3,11 +3,31 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 
 const STAGES = [
-  { name: "Analyze", detail: "Scans the workload for x86-only assumptions — CUDA calls, AVX flags, unpinned base images, x86-only wheels." },
-  { name: "Migrate", detail: "Rebuilds for linux/arm64 against two Arm-optimized backends: llama.cpp+KleidiAI and vLLM+oneDNN/ACL." },
-  { name: "Auto-tune", detail: "An Optuna NSGA-II search explores quant, threads, batch size, and backend, live on the target — an accuracy floor and latency SLA gate every trial." },
-  { name: "Benchmark", detail: "Runs the winning config against the x86 baseline under an identical load profile — same prompts, same concurrency." },
-  { name: "Report", detail: "Emits a migration report explaining what changed and why, plus a schema-conformant result.json." },
+  {
+    name: "Analyze",
+    detail:
+      "Scans the workload for x86-only assumptions — CUDA calls, AVX flags, unpinned base images, x86-only wheels.",
+  },
+  {
+    name: "Migrate",
+    detail:
+      "Rebuilds for linux/arm64 against two Arm-optimized backends: llama.cpp+KleidiAI and vLLM+oneDNN/ACL.",
+  },
+  {
+    name: "Auto-tune",
+    detail:
+      "An Optuna NSGA-II search explores quant, threads, batch size, and backend, live on the target — an accuracy floor and latency SLA gate every trial.",
+  },
+  {
+    name: "Benchmark",
+    detail:
+      "Runs the winning config against the x86 baseline under an identical load profile — same prompts, same concurrency.",
+  },
+  {
+    name: "Report",
+    detail:
+      "Emits a migration report explaining what changed and why, plus a schema-conformant result.json.",
+  },
 ];
 
 const PRINCIPLES = [
@@ -69,7 +89,9 @@ export default function HomePage() {
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
             {STAGES.map((stage, i) => (
               <div key={stage.name} className="rounded-lg border border-border bg-page p-5">
-                <div className="tabular-nums text-sm text-muted">{String(i + 1).padStart(2, "0")}</div>
+                <div className="tabular-nums text-sm text-muted">
+                  {String(i + 1).padStart(2, "0")}
+                </div>
                 <div className="mt-2 font-semibold">{stage.name}</div>
                 <p className="mt-2 text-sm leading-relaxed text-secondary">{stage.detail}</p>
               </div>
@@ -79,7 +101,9 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-muted">Design principles</h2>
+        <h2 className="text-sm font-medium uppercase tracking-wider text-muted">
+          Design principles
+        </h2>
         <div className="mt-6 grid gap-8 sm:grid-cols-2">
           {PRINCIPLES.map((p) => (
             <div key={p.title}>

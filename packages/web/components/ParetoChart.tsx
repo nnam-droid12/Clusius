@@ -57,7 +57,11 @@ export function ParetoChart({ trials }: ParetoChartProps) {
           ]}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Scatter name="infeasible (violates SLA / accuracy floor)" data={infeasible} fill="var(--baseline)" />
+        <Scatter
+          name="infeasible (violates SLA / accuracy floor)"
+          data={infeasible}
+          fill="var(--baseline)"
+        />
         <Scatter name="feasible" data={feasible} fill="var(--series-1)" />
       </ScatterChart>
     </ResponsiveContainer>

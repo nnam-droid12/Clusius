@@ -24,7 +24,9 @@ export function ThemeToggle() {
           key={opt.value}
           onClick={() => setPreference(opt.value)}
           className={`rounded px-2 py-1 transition-colors ${
-            preference === opt.value ? "bg-surface-2 text-primary" : "text-secondary hover:text-primary"
+            preference === opt.value
+              ? "bg-surface-2 text-primary"
+              : "text-secondary hover:text-primary"
           }`}
         >
           {opt.label}

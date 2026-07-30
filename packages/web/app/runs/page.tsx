@@ -58,11 +58,16 @@ export default function RunsPage() {
                 {runs.map((run) => (
                   <tr key={run.id} className="border-t border-border hover:bg-surface">
                     <td className="px-4 py-3">
-                      <Link href={`/runs/${run.id}`} className="font-medium text-series-1 hover:underline">
+                      <Link
+                        href={`/runs/${run.id}`}
+                        className="font-medium text-series-1 hover:underline"
+                      >
                         {run.id.slice(0, 8)}
                       </Link>
                     </td>
-                    <td className={`px-4 py-3 font-medium ${STATUS_COLOR[run.status]}`}>{run.status}</td>
+                    <td className={`px-4 py-3 font-medium ${STATUS_COLOR[run.status]}`}>
+                      {run.status}
+                    </td>
                     <td className="px-4 py-3 text-secondary">{run.stage ?? "—"}</td>
                     <td className="px-4 py-3 text-secondary">{run.target_mode}</td>
                     <td className="tabular-nums px-4 py-3 text-secondary">

@@ -20,7 +20,8 @@ export const api = {
   listRuns: () => request<Run[]>("/runs"),
   getRun: (id: string) => request<RunDetail>(`/runs/${id}`),
   getRunResult: (id: string) => request<Record<string, unknown>>(`/runs/${id}/result.json`),
-  getRunReport: (id: string) => request<{ content: string; created_at: string }>(`/runs/${id}/report`),
+  getRunReport: (id: string) =>
+    request<{ content: string; created_at: string }>(`/runs/${id}/report`),
   listResults: () => request<Run[]>("/results"),
   eventsUrl: (id: string) => `${API_URL}/runs/${id}/events`,
 };

@@ -67,7 +67,10 @@ export default function NewRunPage() {
             />
           </Field>
 
-          <Field label="Workload source path (optional)" hint="A local directory containing the workload's Dockerfile(s) for the analyze stage.">
+          <Field
+            label="Workload source path (optional)"
+            hint="A local directory containing the workload's Dockerfile(s) for the analyze stage."
+          >
             <input
               value={form.source_path}
               onChange={(e) => update("source_path", e.target.value)}
