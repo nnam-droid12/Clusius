@@ -52,7 +52,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=build /src/build/bin/llama-server /src/build/bin/llama-quantize /src/build/bin/llama-cli /app/
+# The whole build/bin/ output, not just the three named binaries: llama-server and
+# llama-quantize are dynamically linked against libggml*.so / libllama*.so files that
+# land in this same directory — cherry-picking just the executables leaves them
+# missing ("error while loading shared libraries") at runtime.
+COPY --from=build /src/build/bin/ /app/
 COPY --from=build /src/convert_hf_to_gguf.py /app/
 COPY --from=build /src/gguf-py /app/gguf-py
 # convert_hf_to_gguf.py does `from conversion import (...)` — a sibling package at
