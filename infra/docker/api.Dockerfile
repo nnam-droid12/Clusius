@@ -26,6 +26,9 @@ COPY --from=build /workspace/packages/api /workspace/packages/api
 # targets from this Dockerfile (see LLAMACPP_DOCKERFILE in
 # packages/core/clusius_core/pipeline.py).
 COPY infra/docker/llamacpp-kleidi.Dockerfile infra/docker/llamacpp-kleidi.Dockerfile
+# clusius_core.bench.schema_validate resolves this path relative to the repo root at
+# runtime, to validate every BenchmarkResult against the open schema before it's used.
+COPY bench/schema/result.schema.json bench/schema/result.schema.json
 
 ENV PATH="/workspace/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
