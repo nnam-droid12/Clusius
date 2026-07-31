@@ -55,6 +55,9 @@ WORKDIR /app
 COPY --from=build /src/build/bin/llama-server /src/build/bin/llama-quantize /src/build/bin/llama-cli /app/
 COPY --from=build /src/convert_hf_to_gguf.py /app/
 COPY --from=build /src/gguf-py /app/gguf-py
+# convert_hf_to_gguf.py does `from conversion import (...)` — a sibling package at
+# the repo root, easy to miss since it's not under gguf-py/.
+COPY --from=build /src/conversion /app/conversion
 # requirements-convert_hf_to_gguf.txt pulls in requirements-convert_legacy_llama.txt
 # via a relative `-r ./...` include, so the whole directory needs to come along, not
 # just the one file (a single-file copy fails at install time with "no such file").
