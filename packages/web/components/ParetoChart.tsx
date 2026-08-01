@@ -132,6 +132,15 @@ export function ParetoChart({ trials, winnerResult }: ParetoChartProps) {
   }, [trials, winnerResult]);
 
   const costVaries = new Set(trials.map((t) => t.cost_per_1m_tokens)).size > 1;
+  // Cost is only a useful x-axis once it actually varies trial to trial (it needs a
+  // configured $/hr on the target — see Known Gaps in the README). Every trial landing
+  // at cost=$0 would otherwise collapse every point onto the same vertical line, right
+  // on top of the y-axis, which reads as an empty chart. Falling back to p95 latency —
+  // the other axis Optuna's constraints actually bite on — keeps the chart meaningful
+  // either way.
+  const xKey = costVaries ? "cost_per_1m_tokens" : "p95_latency_ms";
+  const xLabel = costVaries ? "Cost per 1M tokens ($)" : "p95 latency (ms)";
+  const xUnit = costVaries ? "$" : "ms";
 
   return (
     <div>
@@ -139,6 +148,7 @@ export function ParetoChart({ trials, winnerResult }: ParetoChartProps) {
         <p className="text-xs text-muted">
           {feasible.length + winner.length} feasible · {infeasible.length} infeasible · bubble
           size ∝ p95 latency (larger = slower)
+          {!costVaries && " · x-axis is p95 latency, not cost (see note below)"}
         </p>
         <button
           type="button"
@@ -152,8 +162,8 @@ export function ParetoChart({ trials, winnerResult }: ParetoChartProps) {
       {!costVaries && (
         <p className="mt-2 text-xs text-muted">
           Cost per 1M tokens reads $0.00 for every trial because this target pair has no
-          configured $/hr — see &ldquo;Known Gaps&rdquo; in the README. Throughput (y-axis) and
-          latency (bubble size) are real, live measurements regardless.
+          configured $/hr — see &ldquo;Known Gaps&rdquo; in the README, so this chart plots
+          throughput against p95 latency instead. Both are real, live measurements.
         </p>
       )}
 
@@ -162,20 +172,20 @@ export function ParetoChart({ trials, winnerResult }: ParetoChartProps) {
           <TrialTable trials={trials} winnerResult={winnerResult} />
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={380}>
-          <ScatterChart margin={{ top: 16, right: 16, bottom: 24, left: 8 }}>
+        <ResponsiveContainer width="100%" height={400}>
+          <ScatterChart margin={{ top: 8, right: 24, bottom: 36, left: 8 }}>
             <CartesianGrid stroke="var(--gridline)" strokeDasharray="3 3" />
             <XAxis
               type="number"
-              dataKey="cost_per_1m_tokens"
-              name="cost per 1M tokens"
-              unit="$"
+              dataKey={xKey}
+              name={xLabel}
+              unit={xUnit}
               stroke="var(--gridline)"
               tick={{ fill: "var(--text-muted)", fontSize: 11 }}
               label={{
-                value: "Cost per 1M tokens ($)",
+                value: xLabel,
                 position: "insideBottom",
-                offset: -12,
+                offset: -8,
                 fill: "var(--text-muted)",
                 fontSize: 12,
               }}
@@ -195,12 +205,12 @@ export function ParetoChart({ trials, winnerResult }: ParetoChartProps) {
                 fontSize: 12,
               }}
             />
-            <ZAxis type="number" dataKey="p95_latency_ms" range={[64, 420]} name="p95 latency" />
+            <ZAxis type="number" dataKey="p95_latency_ms" range={[100, 380]} name="p95 latency" />
             <Tooltip
               content={<TrialTooltip />}
               cursor={{ strokeDasharray: "3 3", stroke: "var(--gridline)" }}
             />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: 12 }} />
             <Scatter
               name="Infeasible (violates SLA / accuracy floor)"
               data={infeasible}

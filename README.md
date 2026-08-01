@@ -271,10 +271,11 @@ or interpolated score.
 
 | ✅ Feature | ✅ Feature |
 |---|---|
-| **Live SSE dashboard** — stages and trials stream as they happen | **Persisted run/trial/result/artifact history** via Postgres |
+| **Live SSE dashboard** — stages *and individual trials* stream the instant they happen | **Persisted run/trial/result/artifact history** via Postgres |
 | **Reproducible via a documented, committed target pair** | **Real committed evidence artifacts** in `bench/results/` |
 | **Cost-safety VM stop/start discipline** documented and enforced | **Showcase RAG/MCP agent workload** to migrate against (`packages/agent`) |
 | **Deployed, live, testable demo** on Cloud Run | **Apache-2.0**, fully open source |
+| **`make demo-replay`** — zero-cost, zero-credential live-dashboard walkthrough of real evidence | **Live Pareto-frontier chart** — winner highlighted, bubble-sized by latency, table view |
 
 ---
 
@@ -361,13 +362,25 @@ actually run against real hardware in the first place.
 
 ## Setup Instructions: Build, Run, and Validate on Arm64
 
+**Two ways to see Clusius run, depending on whether you have (or want to pay for) real
+Arm hardware:**
+
+| | What it does | What it needs |
+|---|---|---|
+| **A. Real hardware** (recommended if available) | Drives the actual analyze→migrate→tune→benchmark→report pipeline over SSH against a real Arm64 + x86_64 pair — new, live, measured numbers on your own workload | An SSH-reachable Arm64 instance + matched x86_64 instance (steps 1–5 below) |
+| **B. Zero-cost replay** (`make demo-replay`) | Replays this repo's own committed, real evidence (`bench/results/`) through the exact same live dashboard UX — same stage timeline, same Pareto chart populating trial by trial, same generated report — with no SSH targets, no cloud account, and no spend | Just `make dev` running locally |
+
+**If you don't have Arm hardware on hand, or don't want to incur any cloud cost to
+evaluate this submission, skip straight to [the replay fallback](#4b-no-hardware-or-dont-want-to-pay-zero-cost-replay)
+after step 3.** Every number it shows is real and traceable to `bench/results/` — see
+[Known Gaps](#known-gaps) for exactly what "replay" means (real data, simulated timing).
+
 ### Prerequisites
 
 - Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 20+ (for the dashboard)
 - Docker, for the local Postgres/Redis dev stack
-- An SSH-reachable Arm64 instance (Axion/C4A, Graviton, Ampere — anything `aarch64`) and
-  a matched x86_64 instance, for target mode — **this is the only hard requirement to
-  see real numbers**; everything else runs anywhere
+- **For path A only:** an SSH-reachable Arm64 instance (Axion/C4A, Graviton, Ampere —
+  anything `aarch64`) and a matched x86_64 instance
 - (Optional) A GCP project with the Compute Engine API enabled, if you want to use
   provisioned mode instead of bringing your own target pair
 
@@ -379,7 +392,7 @@ cd Clusius
 make setup       # uv sync --all-packages + npm install for the dashboard
 ```
 
-### 2. Configure your Arm target pair
+### 2. Configure your Arm target pair (path A — skip if going straight to the replay fallback)
 
 ```bash
 cp .env.example .env
@@ -411,7 +424,7 @@ access (to pull the llama.cpp source and the target HF model) and Docker install
 make dev    # starts postgres + redis (docker compose), the API, and the dashboard
 ```
 
-### 4. Launch a real migration run
+### 4a. Launch a real migration run (path A — real Arm hardware)
 
 From the dashboard at `http://localhost:3000`, or directly against the API:
 
@@ -436,6 +449,28 @@ curl http://localhost:8000/runs/<run-id>/events           # SSE stream
 curl http://localhost:8000/runs/<run-id>/report            # generated MIGRATION_REPORT.md
 curl http://localhost:8000/runs/<run-id>/result.json       # schema-conformant machine result
 ```
+
+### 4b. No hardware, or don't want to pay: zero-cost replay
+
+No SSH targets, no cloud account, no `.env` SSH block needed — just the stack from
+step 3 running locally:
+
+```bash
+make demo-replay
+```
+
+This finds the most recent real run's evidence already committed to `bench/results/`
+(currently the run documented in [Proof](#proof-a-real-live-end-to-end-run):
+`2026-07-31-real-e2e-validation-7`), and replays it through the *exact same* code path
+a live run uses — real DB writes, real Redis pub/sub events, real SSE stream — at a
+live pace instead of dumping it all at once. Open the URL it prints
+(`http://localhost:3000/runs/<run-id>`) and watch the same stage timeline and Pareto
+chart a real hardware run would produce, populated with real, measured numbers.
+
+The only thing simulated is *when* each step lands — every metric, every trial, and
+the generated report text are byte-for-byte the same real numbers as path A would show
+you on this exact evidence. See [`packages/api/clusius_api/scripts/demo_replay.py`](packages/api/clusius_api/scripts/demo_replay.py)
+for exactly what it does — it's a short, readable script, not a black box.
 
 ### 5. Validate the result independently
 
@@ -589,12 +624,22 @@ underlying endpoints, no `curl` required.
   dashboard while they're off will complete `analyze` and then stall. The committed
   artifacts in `bench/results/` are the way to see real numbers without needing the pair
   running; start them yourself (see [Cloud Deployment](#cloud-deployment)) to drive a
-  fresh live run.
-- **`price_per_hour` isn't configured on the current benchmark pair**, so cost-per-token
-  reads `$0.0000` in the committed result — the cost computation itself
-  (`clusius_core.bench.cost`) is real and live, it simply has no price input set for
-  these specific VMs yet. Set `CLUSIUS_TARGET_ARM_PRICE_PER_HOUR` /
-  `CLUSIUS_TARGET_X86_PRICE_PER_HOUR` to see a real cost delta.
+  fresh live run, or run `make demo-replay` locally (see
+  [Setup Instructions](#4b-no-hardware-or-dont-want-to-pay-zero-cost-replay)) for the
+  same live dashboard experience at zero cost.
+- **What "replay" does and doesn't simulate:** `make demo-replay` re-emits real,
+  already-measured trial/result/report data through the same DB-write and Redis
+  pub/sub code path a live run uses, spaced out at a live pace — every *number* is
+  real. The only thing it fakes is *when* each step lands; it does not SSH into
+  anything, build any image, or run any inference.
+- **`price_per_hour` was not configured when the committed headline run executed**, so
+  cost-per-token reads `$0.0000` in that result — the cost computation itself
+  (`clusius_core.bench.cost`) was always real and live, it simply had no price input
+  set for these specific VMs at the time. `CLUSIUS_TARGET_ARM_PRICE_PER_HOUR` /
+  `CLUSIUS_TARGET_X86_PRICE_PER_HOUR` are now set to the real, live on-demand list price
+  for `c4a-standard-2` / `c4-standard-2` in `us-central1` (pulled from the Cloud Billing
+  Catalog API, not guessed — see `.env.example`), so a fresh run will show a real,
+  non-zero cost delta.
 - **The committed headline run used a 4-trial budget**, sized to keep a real test
   session's cloud spend small, not because the search space is small — a larger
   `search_budget_trials` explores more of the quantization/threading/batching grid and
