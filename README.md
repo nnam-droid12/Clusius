@@ -57,18 +57,19 @@ Every number in this README comes from a real pipeline run against a real Axion 
 instance and a real x86 instance in Google Cloud, over real SSH, building a real Docker
 image and serving a real model — never mocked, estimated, or hand-typed. The committed
 evidence for the headline result lives in [`bench/results/`](bench/results/):
-`2026-07-31-real-e2e-validation-7.result.json` (winner config, schema-conformant),
-`2026-07-31-real-e2e-validation-7.run-detail.json` (every trial plus the baseline), and
-`2026-07-31-real-e2e-validation-7.MIGRATION_REPORT.md` (the generated report, verbatim).
+`2026-08-01-real-e2e-validation-13.result.json` (winner config, schema-conformant),
+`2026-08-01-real-e2e-validation-13.run-detail.json` (every trial plus the baseline), and
+`2026-08-01-real-e2e-validation-13.MIGRATION_REPORT.md` (the generated report, verbatim).
+Earlier real runs (`2026-07-31-real-e2e-validation-7`, `...-8`) are kept in the same
+directory as historical evidence, not deleted just because a newer run superseded them.
 The two benchmark VMs (`clusius-arm-c4a`, `clusius-x86-c4`) are **stopped between test
 sessions as a standing cost-safety rule** — if you hit the live dashboard and a run
 doesn't progress past `analyze`, it's because the target pair is powered off, not because
 anything is broken; see [Known Gaps](#known-gaps) for how to reproduce it yourself.
-`price_per_hour` is left at `0.0` in this run's numbers because the operator never
-configured a `$/hr` value for these particular VMs — cost-per-token is a real, live
-computation everywhere in the codebase, it simply has no price input on this specific
-pair yet, so treat the "Cost / 1M tokens" row honestly as *not yet priced* rather than
-*zero cost*.
+`CLUSIUS_TARGET_ARM_PRICE_PER_HOUR` / `CLUSIUS_TARGET_X86_PRICE_PER_HOUR` are set to the
+real, live on-demand list price for `c4a-standard-2` / `c4-standard-2` in `us-central1`
+(pulled from the Cloud Billing Catalog API, not guessed), so the cost numbers below are
+genuinely priced, not a placeholder.
 
 ---
 
@@ -80,17 +81,22 @@ the Arm64 configuration Clusius's own tuner selected as the winner:
 
 | Metric | x86 baseline (`c4-standard-2`) | Arm64 winner (`c4a-standard-2`, Clusius-optimized) | Delta |
 |---|---|---|---|
-| **Throughput** | 29.2 tok/s | **98.8 tok/s** | **+238.9%** |
-| **p95 latency** | 30,050 ms | **8,397 ms** | **−72.1%** |
+| **Throughput** | 30.8 tok/s | **124.3 tok/s** | **+303.3%** |
+| **p95 latency** | 23,838 ms | **6,414 ms** | **−73.1%** |
+| **Cost / 1M tokens** | $0.8734 | **$0.2007** | **−77.0%** |
 | **Accuracy** | 100.0% | 100.0% | +0.0pp |
 | vCPUs | 2 (x86_64) | 2 (aarch64 / Axion, Neoverse V2) | same class, no scale-up |
 
 Same model, same quantization (Q8_0), same thread count (2), same batch size (4), same
 KV-cache precision (fp16), same instance class (2 vCPU) on both sides — the only
 difference is the Arm build links Arm's KleidiAI CPU matmul kernels and the x86 build
-doesn't. **Nearly 3.4x the throughput and under a third of the latency, on equivalent
-hardware, from one CMake flag Clusius flips automatically and then searches around.**
-Full trial-by-trial data: [`bench/results/2026-07-31-real-e2e-validation-7.run-detail.json`](bench/results/2026-07-31-real-e2e-validation-7.run-detail.json).
+doesn't. **Over 4x the throughput, under a third of the latency, and less than a quarter
+of the cost, on equivalent hardware, from one CMake flag Clusius flips automatically and
+then searches around.** The cost delta uses real Google Cloud on-demand list pricing for
+both instance types (Cloud Billing Catalog API, `us-central1`), not an estimate.
+Full trial-by-trial data: [`bench/results/2026-08-01-real-e2e-validation-13.run-detail.json`](bench/results/2026-08-01-real-e2e-validation-13.run-detail.json)
+— including one trial the search correctly rejected for violating the latency SLA, proof
+the accuracy/latency constraints are actually enforced, not decorative.
 
 ---
 
@@ -158,7 +164,7 @@ live over SSE.
    description, x86-only blockers found (if any), optimizations applied, backend
    selection justification, chosen configuration, and a full baseline-vs-winner results
    table with percentage deltas. See a real example:
-   [`bench/results/2026-07-31-real-e2e-validation-7.MIGRATION_REPORT.md`](bench/results/2026-07-31-real-e2e-validation-7.MIGRATION_REPORT.md).
+   [`bench/results/2026-08-01-real-e2e-validation-13.MIGRATION_REPORT.md`](bench/results/2026-08-01-real-e2e-validation-13.MIGRATION_REPORT.md).
 4. **`result.json`** — machine-readable, schema-conformant
    (`bench/schema/result.schema.json`), carrying instance type, arch, image digest,
    model hash, every measured metric, and the full trial history — so a run is
@@ -309,27 +315,38 @@ hardware, exactly as a visitor launching a run from the dashboard would:
    build`, real pinned llama.cpp commit) and the KleidiAI-off baseline image on
    `clusius-x86-c4`; downloaded and quantized `Qwen/Qwen2.5-0.5B-Instruct` to GGUF on
    both targets via git-lfs + the image's own conversion tooling.
-4. **Auto-tune** — ran 4 real Optuna trials against the live Arm instance: each trial
-   deployed a real `llama-server`, health-checked it, ran a real load-generated
-   benchmark, tore it down. All 4 trials were feasible (within the accuracy floor and
-   latency SLA); the winner was **Q8_0, 2 threads, batch 4, fp16 KV cache, no core
-   pinning** at **98.8 tok/s / 8,397 ms p95**.
+4. **Auto-tune** — ran 4 real Optuna trials against the live Arm instance, each one
+   landing on the dashboard's Pareto chart the instant it finished (not batched at the
+   end — confirmed from the trials' own timestamps, 76 real seconds apart end to end):
+   each trial deployed a real `llama-server`, health-checked it, ran a real
+   load-generated benchmark, tore it down. **3 of 4 trials were feasible**; trial 0
+   (Q4_K_M, 1 thread) was correctly rejected for exceeding the 30s p95 SLA at 34.2s — a
+   real, working constraint, not a decorative one. The winner was **Q8_0, 2 threads,
+   batch 4, fp16 KV cache, no core pinning** at **124.3 tok/s / 6,414 ms p95 / $0.2007
+   per 1M tokens**.
 5. **Benchmark** — replayed that exact configuration's traffic profile against the x86
-   baseline: **29.2 tok/s / 30,050 ms p95**.
+   baseline: **30.8 tok/s / 23,838 ms p95 / $0.8734 per 1M tokens**.
 6. **Report** — generated `MIGRATION_REPORT.md` and a schema-validated `result.json`,
    both persisted and both committed to this repo as evidence.
 
 **Committed artifacts from this exact run:**
-- [`bench/results/2026-07-31-real-e2e-validation-7.result.json`](bench/results/2026-07-31-real-e2e-validation-7.result.json) — the winning configuration, schema-conformant
-- [`bench/results/2026-07-31-real-e2e-validation-7.run-detail.json`](bench/results/2026-07-31-real-e2e-validation-7.run-detail.json) — every trial plus the baseline, as persisted in Postgres
-- [`bench/results/2026-07-31-real-e2e-validation-7.MIGRATION_REPORT.md`](bench/results/2026-07-31-real-e2e-validation-7.MIGRATION_REPORT.md) — the generated report, verbatim
+- [`bench/results/2026-08-01-real-e2e-validation-13.result.json`](bench/results/2026-08-01-real-e2e-validation-13.result.json) — the winning configuration, schema-conformant
+- [`bench/results/2026-08-01-real-e2e-validation-13.run-detail.json`](bench/results/2026-08-01-real-e2e-validation-13.run-detail.json) — every trial plus the baseline, as persisted in Postgres
+- [`bench/results/2026-08-01-real-e2e-validation-13.MIGRATION_REPORT.md`](bench/results/2026-08-01-real-e2e-validation-13.MIGRATION_REPORT.md) — the generated report, verbatim
 
-This run followed seven earlier attempts in the same session that each surfaced and
-fixed one real infrastructure gap (a missing `git-lfs` install, a missing shared-library
-directory in the Docker image, a missing firewall rule for the inference port, and
-others) — left in this README deliberately, because a pipeline that only works after
-real, unglamorous infrastructure debugging is a stronger claim than one that was never
-actually run against real hardware in the first place.
+This run followed a chain of earlier attempts across two sessions that each surfaced and
+fixed one real bug — left in this README deliberately, because a pipeline that only
+works after real, unglamorous debugging is a stronger claim than one that was never
+actually run against real hardware in the first place. The infrastructure-layer bugs
+(missing `git-lfs`, a missing shared-library directory in the Docker image, a missing
+firewall rule for the inference port) were found and fixed first. The most recent one was
+a genuine llama.cpp crash, not infrastructure: `--batch-size 1` reliably fails
+llama-server's own startup assertion (`GGML_ASSERT(n_outputs_max <=
+cparams.n_outputs_max)`) because the server defaults to 4 parallel slots and a batch
+smaller than the slot count is an invalid combination — reproduced by hand on the live
+Arm instance (`docker logs` showing the exact assertion and stack trace), then fixed by
+excluding `1` from the tuner's batch-size search space
+(`clusius_core.pipeline.PipelineConfig.batch_sizes`).
 
 ---
 
@@ -461,7 +478,7 @@ make demo-replay
 
 This finds the most recent real run's evidence already committed to `bench/results/`
 (currently the run documented in [Proof](#proof-a-real-live-end-to-end-run):
-`2026-07-31-real-e2e-validation-7`), and replays it through the *exact same* code path
+`2026-08-01-real-e2e-validation-13`), and replays it through the *exact same* code path
 a live run uses — real DB writes, real Redis pub/sub events, real SSE stream — at a
 live pace instead of dumping it all at once. Open the URL it prints
 (`http://localhost:3000/runs/<run-id>`) and watch the same stage timeline and Pareto
@@ -480,7 +497,7 @@ committed example in `bench/results/`) without trusting Clusius's own report gen
 
 ```bash
 uv run --package clusius-core python -m clusius_core.bench.schema_validate \
-  bench/results/2026-07-31-real-e2e-validation-7.result.json
+  bench/results/2026-08-01-real-e2e-validation-13.result.json
 ```
 
 ### Running the test suite
@@ -632,14 +649,6 @@ underlying endpoints, no `curl` required.
   pub/sub code path a live run uses, spaced out at a live pace — every *number* is
   real. The only thing it fakes is *when* each step lands; it does not SSH into
   anything, build any image, or run any inference.
-- **`price_per_hour` was not configured when the committed headline run executed**, so
-  cost-per-token reads `$0.0000` in that result — the cost computation itself
-  (`clusius_core.bench.cost`) was always real and live, it simply had no price input
-  set for these specific VMs at the time. `CLUSIUS_TARGET_ARM_PRICE_PER_HOUR` /
-  `CLUSIUS_TARGET_X86_PRICE_PER_HOUR` are now set to the real, live on-demand list price
-  for `c4a-standard-2` / `c4-standard-2` in `us-central1` (pulled from the Cloud Billing
-  Catalog API, not guessed — see `.env.example`), so a fresh run will show a real,
-  non-zero cost delta.
 - **The committed headline run used a 4-trial budget**, sized to keep a real test
   session's cloud spend small, not because the search space is small — a larger
   `search_budget_trials` explores more of the quantization/threading/batching grid and
@@ -648,6 +657,14 @@ underlying endpoints, no `curl` required.
   llama.cpp+KleidiAI won every one of them at this model size and concurrency — a larger
   model or higher-concurrency workload is where vLLM's continuous batching is expected
   to start winning, and that comparison hasn't been run yet.
+- **`batch_size=1` is deliberately excluded from the search space** (see
+  `PipelineConfig.batch_sizes` in `clusius_core/pipeline.py`) — it reliably crashes
+  llama-server's startup (`GGML_ASSERT(n_outputs_max <= cparams.n_outputs_max)`) because
+  the server defaults to 4 parallel slots and a batch smaller than the slot count is an
+  invalid combination. Found by reproducing a real health-check timeout by hand on the
+  live target (see [Proof](#proof-a-real-live-end-to-end-run)) — passing `--parallel 1`
+  alongside `--batch-size 1` would likely make it valid again, which would let the tuner
+  explore that corner of the space; not done yet.
 - **Provisioned mode (opt-in GCP auto-provisioning) is implemented and unit-tested but
   has not been exercised in a real live run** — every real number in this README came
   from target mode against the operator-configured VM pair.
