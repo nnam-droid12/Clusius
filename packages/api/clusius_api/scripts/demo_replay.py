@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -33,18 +34,40 @@ STAGE_DELAY_S = 1.5
 TRIAL_DELAY_S = 1.2
 
 
+def _commit_or_mtime(path: Path) -> float:
+    """Unix timestamp of the file's last git commit, falling back to filesystem mtime
+    if it's untracked or this isn't a git checkout at all (e.g. a source tarball)."""
+    try:
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%ct", "--", str(path)],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return float(out.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return path.stat().st_mtime
+
+
 def _latest_evidence() -> tuple[dict[str, Any], str]:
-    """Picks the most recent committed run's evidence by filename — evidence files are
-    named `<ISO-date>-<workload-slug>.run-detail.json`, so a lexicographic sort is a
-    chronological sort. Never hardcodes a specific run, so this keeps working as new
-    real runs get committed."""
-    candidates = sorted(_BENCH_RESULTS.glob("*.run-detail.json"))
+    """Picks the most recently committed run's evidence. Sorted by git commit time, not
+    a filename string sort — evidence filenames are `<ISO-date>-<workload-slug>...`, and
+    the numeric slug suffix breaks a plain lexicographic sort as soon as it crosses a
+    digit-count boundary (`...-13` sorts before `...-8`, since '1' < '8' as characters).
+    Falls back to filesystem mtime if git history isn't available (e.g. a shallow
+    checkout). Never hardcodes a specific run, so this keeps working as new real runs
+    get committed."""
+    candidates = list(_BENCH_RESULTS.glob("*.run-detail.json"))
     if not candidates:
         raise SystemExit(
             f"No committed run evidence found in {_BENCH_RESULTS} — nothing to replay. "
             "See the README's 'Proof: A Real, Live, End-to-End Run' section."
         )
-    run_detail_path = candidates[-1]
+    run_detail_path = max(candidates, key=_commit_or_mtime)
     report_path = run_detail_path.with_name(
         run_detail_path.name.replace(".run-detail.json", ".MIGRATION_REPORT.md")
     )

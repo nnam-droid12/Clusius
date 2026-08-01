@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export function ReportViewer({ content }: { content: string }) {
   return (
@@ -16,7 +17,7 @@ export function ReportViewer({ content }: { content: string }) {
         </a>
       </div>
       <article className="prose prose-sm mt-4 max-w-none prose-headings:text-primary prose-p:text-secondary prose-strong:text-primary prose-table:text-secondary">
-        <ReactMarkdown>{content}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
       </article>
     </div>
   );
