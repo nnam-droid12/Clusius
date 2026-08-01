@@ -25,8 +25,17 @@ fmt:
 	uv run ruff format .
 	cd packages/web && npm run format
 
+# Launches a real run against the local API (requires `make dev` running, with SSH
+# targets configured in .env — see "Setup Instructions" in the README). Defaults to
+# the exact config behind this repo's committed headline result; override MODEL_CONFIG
+# to point Clusius at a different model — see "Migration Recipe" in the README for
+# what else that involves. `make demo MODEL_CONFIG=configs/demo-run.tinyllama.json`
+# is the reusable template for a second, different model.
+MODEL_CONFIG ?= configs/demo-run.qwen.json
+
 demo:
-	uv run python -m clusius_core.cli run --config configs/demo.yaml
+	@echo "Launching a run from $(MODEL_CONFIG) against http://localhost:8000 ..."
+	@curl -sf -X POST http://localhost:8000/runs -H 'content-type: application/json' -d @$(MODEL_CONFIG) | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const r=JSON.parse(d);console.log('Run launched: '+r.id);console.log('Dashboard:    http://localhost:3000/runs/'+r.id)})"
 
 db-upgrade:
 	uv run --package clusius-api alembic -c packages/api/alembic.ini upgrade head

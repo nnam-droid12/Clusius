@@ -1,0 +1,8 @@
+{
+  "workload_name": "real-e2e-validation",
+  "model_ref": "Qwen/Qwen2.5-0.5B-Instruct",
+  "target_mode": "target",
+  "search_budget_trials": 4,
+  "sla_p95_latency_ms": 30000,
+  "sla_accuracy_floor": 0.5
+}

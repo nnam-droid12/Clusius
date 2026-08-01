@@ -1,0 +1,8 @@
+{
+  "workload_name": "second-model-generalization-check",
+  "model_ref": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "target_mode": "target",
+  "search_budget_trials": 4,
+  "sla_p95_latency_ms": 60000,
+  "sla_accuracy_floor": 0.5
+}

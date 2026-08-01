@@ -42,6 +42,7 @@ Artifact Registry, Secret Manager) · Neon (Postgres) · Upstash (Redis)
 - [Proof: A Real, Live, End-to-End Run](#proof-a-real-live-end-to-end-run)
 - [Why It's Interesting / Why It Should Win](#why-its-interesting--why-it-should-win)
 - [Setup Instructions: Build, Run, and Validate on Arm64](#setup-instructions-build-run-and-validate-on-arm64)
+- [Migration Recipe: Point This At Your Own Model](#migration-recipe-point-this-at-your-own-model)
 - [Cloud Deployment](#cloud-deployment)
 - [Project Structure](#project-structure)
 - [Data Sources](#data-sources)
@@ -282,6 +283,7 @@ or interpolated score.
 | **Cost-safety VM stop/start discipline** documented and enforced | **Showcase RAG/MCP agent workload** to migrate against (`packages/agent`) |
 | **Deployed, live, testable demo** on Cloud Run | **Apache-2.0**, fully open source |
 | **`make demo-replay`** — zero-cost, zero-credential live-dashboard walkthrough of real evidence | **Live Pareto-frontier chart** — winner highlighted, bubble-sized by latency, table view |
+| **Reusable migration templates** in [`configs/`](configs/) — `make demo MODEL_CONFIG=...` retargets the whole pipeline at a different model with zero code changes | **Real GCP on-demand pricing** wired in, not a cost placeholder |
 
 ---
 
@@ -526,6 +528,41 @@ block, so a mid-run failure never leaves billing infrastructure running. See
 
 ---
 
+## Migration Recipe: Point This At Your Own Model
+
+Everything in the [Headline Result](#headline-result) is real, but it's one model. The
+point of Clusius isn't "we migrated Qwen2.5-0.5B" — it's that the pipeline, the
+Dockerfile, and the search space are **not hardcoded to that model at all**. `model_ref`
+is a free-form field on every run (`RunCreate.model_ref` →
+`PipelineConfig.hf_model_id`), and nothing downstream — the Docker build, the GGUF
+conversion, the tuner's search space — branches on which model it is.
+[`configs/`](configs/) makes that concrete as two literal, reusable run templates
+instead of an implied claim:
+
+| File | Model | Status |
+|---|---|---|
+| [`configs/demo-run.qwen.json`](configs/demo-run.qwen.json) | `Qwen/Qwen2.5-0.5B-Instruct` | The exact config behind the committed headline result — real, run, evidence in `bench/results/` |
+| [`configs/demo-run.tinyllama.json`](configs/demo-run.tinyllama.json) | `TinyLlama/TinyLlama-1.1B-Chat-v1.0` | A genuinely different architecture family (Llama vs. Qwen2) and a different size class, as the "swap the model" proof — see [Known Gaps](#known-gaps) for whether it's been run live yet |
+
+To point Clusius at either one (or your own — copy the file and change `model_ref`):
+
+```bash
+make demo                                              # uses configs/demo-run.qwen.json
+make demo MODEL_CONFIG=configs/demo-run.tinyllama.json # or any config you write
+```
+
+This is the same `POST /runs` the dashboard's "Launch a run" form calls — `make demo` is
+just the fastest way to fire one without opening a browser. Any model
+`convert_hf_to_gguf.py` supports (i.e. any architecture llama.cpp's converter recognizes
+— most causal LMs on the Hub) works with zero code changes; the only thing worth
+reviewing per-model is the search space in
+[`clusius_core/pipeline.py`](packages/core/clusius_core/pipeline.py)'s `PipelineConfig`
+defaults (quant types, thread counts, batch sizes) — the current defaults were sized for
+a small model on a 2-vCPU pair, and a larger model or a bigger instance class has more
+room to search.
+
+---
+
 ## Cloud Deployment
 
 The hosted demo runs entirely on Google Cloud:
@@ -649,6 +686,13 @@ underlying endpoints, no `curl` required.
   pub/sub code path a live run uses, spaced out at a live pace — every *number* is
   real. The only thing it fakes is *when* each step lands; it does not SSH into
   anything, build any image, or run any inference.
+- **`configs/demo-run.tinyllama.json` is a template, not yet a proven result.** The
+  architecture is genuinely model-agnostic (see [Migration
+  Recipe](#migration-recipe-point-this-at-your-own-model)), but as of this writing that
+  specific config hasn't been run against the live target pair — there's no committed
+  `bench/results/` evidence for TinyLlama yet, only for Qwen2.5-0.5B. Don't read it as
+  "this exact model was validated"; read it as "here's exactly how you'd validate a
+  different one."
 - **The committed headline run used a 4-trial budget**, sized to keep a real test
   session's cloud spend small, not because the search space is small — a larger
   `search_budget_trials` explores more of the quantization/threading/batching grid and
