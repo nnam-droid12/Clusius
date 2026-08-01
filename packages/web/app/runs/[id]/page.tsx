@@ -142,7 +142,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
           <div className="rounded-lg border border-border bg-surface p-6">
             <h3 className="font-semibold">Auto-tune search: throughput vs. cost</h3>
             <div className="mt-4">
-              <ParetoChart trials={run.trials} />
+              <ParetoChart trials={run.trials} winnerResult={winnerResult?.result_json} />
             </div>
           </div>
         )}

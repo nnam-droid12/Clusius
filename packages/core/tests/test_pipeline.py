@@ -148,21 +148,27 @@ def test_run_full_pipeline_reports_stage_events(_patch_infra: dict) -> None:
 
     run_full_pipeline(_config(search_budget_trials=2), on_event=record)
 
-    stages_seen = [s for s, _ in events]
-    assert stages_seen == [
-        "analyze",
-        "analyze",
-        "migrate",
-        "migrate",
-        "tune",
-        "tune",
-        "benchmark",
-        "benchmark",
-        "report",
-        "report",
+    # Each trial fires its own ("tune", "trial") event live, in between "tune"/running
+    # and "tune"/completed, so the dashboard can plot the search as it happens.
+    stage_events = [(s, st) for s, st in events if st != "trial"]
+    assert stage_events == [
+        ("analyze", "running"),
+        ("analyze", "completed"),
+        ("migrate", "running"),
+        ("migrate", "completed"),
+        ("tune", "running"),
+        ("tune", "completed"),
+        ("benchmark", "running"),
+        ("benchmark", "completed"),
+        ("report", "running"),
+        ("report", "completed"),
     ]
     assert events[0] == ("analyze", "running")
     assert events[-1] == ("report", "completed")
+
+    trial_events = [(s, st) for s, st in events if st == "trial"]
+    assert len(trial_events) == 2
+    assert all(s == "tune" for s, _ in trial_events)
 
 
 def test_run_full_pipeline_runs_analysis_when_source_path_given(

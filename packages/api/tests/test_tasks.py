@@ -136,6 +136,25 @@ async def test_run_pipeline_uses_full_ssh_path_when_configured(
     def fake_run_full_pipeline(config, on_event):
         on_event("analyze", "running", {})
         on_event("analyze", "completed", {"blocker_count": 1})
+        on_event(
+            "tune",
+            "trial",
+            {
+                "trial_number": 0,
+                "backend": "llamacpp",
+                "quant": "Q4_K_M",
+                "threads": 2,
+                "core_pinning": True,
+                "batch_size": 1,
+                "kv_cache_precision": "int8",
+                "context_length": 2048,
+                "tokens_per_second": 40.0,
+                "p95_latency_ms": 400.0,
+                "cost_per_1m_tokens": 1.5,
+                "accuracy_score": 0.95,
+                "feasible": True,
+            },
+        )
         on_event("report", "completed", {})
         return _fake_pipeline_result()
 

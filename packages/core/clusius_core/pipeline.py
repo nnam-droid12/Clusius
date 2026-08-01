@@ -160,6 +160,31 @@ def run_full_pipeline(config: PipelineConfig, on_event: StageEvent = _noop_event
     def evaluate(trial_config: TrialConfig) -> BenchmarkResult:
         result = evaluator(trial_config)
         trial_history.append((trial_config, result))
+        feasible = (
+            result.accuracy_score >= config.sla_accuracy_floor
+            and result.latency_ms.p95 <= config.sla_p95_latency_ms
+        )
+        # Streamed the instant each trial finishes (not batched at the end) so a live
+        # dashboard can plot the search converging in real time, trial by trial.
+        on_event(
+            "tune",
+            "trial",
+            {
+                "trial_number": len(trial_history) - 1,
+                "backend": trial_config.backend,
+                "quant": trial_config.quant,
+                "threads": trial_config.threads,
+                "core_pinning": trial_config.core_pinning,
+                "batch_size": trial_config.batch_size,
+                "kv_cache_precision": trial_config.kv_cache_precision,
+                "context_length": trial_config.context_length,
+                "tokens_per_second": result.throughput.tokens_per_second,
+                "p95_latency_ms": result.latency_ms.p95,
+                "cost_per_1m_tokens": result.cost_per_1m_tokens,
+                "accuracy_score": result.accuracy_score,
+                "feasible": feasible,
+            },
+        )
         return result
 
     search_space = SearchSpace(

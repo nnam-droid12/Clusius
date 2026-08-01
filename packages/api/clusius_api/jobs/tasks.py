@@ -54,18 +54,47 @@ async def _set_stage(session, redis, run: Run, stage: str, status: str, **extra:
     await publish_event(redis, run.id, {"stage": stage, "status": status, **extra})
 
 
+async def _record_trial(session, redis, run: Run, trial: dict) -> None:
+    """Persists one Optuna trial the instant it finishes, rather than waiting for the
+    whole search to complete — this is what lets the dashboard's Pareto chart populate
+    live, trial by trial, while `tune` is still running (it re-polls `GET
+    /runs/{id}` every few seconds and just renders whatever trials exist so far)."""
+    session.add(
+        Trial(
+            run_id=run.id,
+            trial_number=trial["trial_number"],
+            backend=trial["backend"],
+            quant=trial["quant"],
+            threads=trial["threads"],
+            core_pinning=trial["core_pinning"],
+            batch_size=trial["batch_size"],
+            kv_cache_precision=trial["kv_cache_precision"],
+            context_length=trial["context_length"],
+            tokens_per_second=trial["tokens_per_second"],
+            p95_latency_ms=trial["p95_latency_ms"],
+            cost_per_1m_tokens=trial["cost_per_1m_tokens"],
+            accuracy_score=trial["accuracy_score"],
+            feasible=trial["feasible"],
+        )
+    )
+    await session.commit()
+    await publish_event(redis, run.id, {"stage": "tune", "status": "trial", **trial})
+
+
 def _make_on_event(
     loop: asyncio.AbstractEventLoop, session, redis, run: Run
 ) -> Callable[[str, str, dict], None]:
     """`run_full_pipeline` runs synchronously inside `asyncio.to_thread`, so its
     `on_event` callback fires from a worker thread — bridge each event back onto the
     main event loop (where `session`/`redis` actually live) and block the worker
-    thread until it's persisted, so stage order is preserved."""
+    thread until it's persisted, so stage/trial order is preserved."""
 
     def on_event(stage: str, status: str, extra: dict) -> None:
-        future = asyncio.run_coroutine_threadsafe(
-            _set_stage(session, redis, run, stage, status, **extra), loop
-        )
+        if stage == "tune" and status == "trial":
+            coro = _record_trial(session, redis, run, extra)
+        else:
+            coro = _set_stage(session, redis, run, stage, status, **extra)
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
         future.result()
 
     return on_event
@@ -125,25 +154,8 @@ async def _run_full_ssh_pipeline(
                 content=json.dumps([vars(f) for f in result.analysis.findings]),
             )
         )
-    for t in result.trials:
-        session.add(
-            Trial(
-                run_id=run.id,
-                trial_number=t.trial_number,
-                backend=t.backend,
-                quant=t.quant,
-                threads=t.threads,
-                core_pinning=t.core_pinning,
-                batch_size=t.batch_size,
-                kv_cache_precision=t.kv_cache_precision,
-                context_length=t.context_length,
-                tokens_per_second=t.tokens_per_second,
-                p95_latency_ms=t.p95_latency_ms,
-                cost_per_1m_tokens=t.cost_per_1m_tokens,
-                accuracy_score=t.accuracy_score,
-                feasible=t.feasible,
-            )
-        )
+    # Trials are already persisted live, one by one, via on_event("tune", "trial", ...)
+    # as each one finishes during the search — not bulk-inserted here.
     run.selected_backend = result.winner_config.backend
     session.add(run)
     await session.commit()
