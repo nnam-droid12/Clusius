@@ -55,7 +55,13 @@ class PipelineConfig:
     threads_options: list[int] = field(default_factory=lambda: [1, 2])
     quant_types: list[str] = field(default_factory=lambda: ["Q4_K_M", "Q8_0"])
     context_lengths: list[int] = field(default_factory=lambda: [2048])
-    batch_sizes: list[int] = field(default_factory=lambda: [1, 4])
+    # llama-server defaults to 4 parallel slots (no --parallel override in
+    # deploy.start_llamacpp_server), and its internal output-buffer sizing requires
+    # --batch-size >= slot count — batch_size=1 hits a real, reproducible
+    # GGML_ASSERT(n_outputs_max <= cparams.n_outputs_max) crash on startup, confirmed
+    # live against the real Arm target. 1 is deliberately excluded here, not just
+    # untested.
+    batch_sizes: list[int] = field(default_factory=lambda: [2, 4])
 
 
 @dataclass
