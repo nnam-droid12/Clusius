@@ -376,6 +376,13 @@ excluding `1` from the tuner's batch-size search space
   target mode needs no cloud credentials at all; the opt-in provisioning mode enforces a
   hard cost ceiling and an always-firing TTL teardown; and every real test session in
   this project's history ends with the benchmark VMs stopped.
+- **It's proven to generalize, not just to work once.** A second real run against
+  `TinyLlama/TinyLlama-1.1B-Chat-v1.0` — a different architecture family and size class
+  from the headline Qwen2.5-0.5B result — completed cleanly on the first attempt with
+  zero code changes, and the tuner found a genuinely different winning configuration
+  (core-pinned, int8 KV cache, vs. unpinned fp16 for Qwen), because it's actually
+  searching, not replaying a memorized answer. See [Migration
+  Recipe](#migration-recipe-point-this-at-your-own-model).
 
 ---
 
@@ -537,12 +544,20 @@ is a free-form field on every run (`RunCreate.model_ref` →
 `PipelineConfig.hf_model_id`), and nothing downstream — the Docker build, the GGUF
 conversion, the tuner's search space — branches on which model it is.
 [`configs/`](configs/) makes that concrete as two literal, reusable run templates
-instead of an implied claim:
+instead of an implied claim — **both now backed by real, committed evidence**:
 
-| File | Model | Status |
+| File | Model | Real result |
 |---|---|---|
-| [`configs/demo-run.qwen.json`](configs/demo-run.qwen.json) | `Qwen/Qwen2.5-0.5B-Instruct` | The exact config behind the committed headline result — real, run, evidence in `bench/results/` |
-| [`configs/demo-run.tinyllama.json`](configs/demo-run.tinyllama.json) | `TinyLlama/TinyLlama-1.1B-Chat-v1.0` | A genuinely different architecture family (Llama vs. Qwen2) and a different size class, as the "swap the model" proof — see [Known Gaps](#known-gaps) for whether it's been run live yet |
+| [`configs/demo-run.qwen.json`](configs/demo-run.qwen.json) | `Qwen/Qwen2.5-0.5B-Instruct` | +303.3% tok/s, −73.1% p95, −77.0% cost — [evidence](bench/results/2026-08-01-real-e2e-validation-13.result.json) |
+| [`configs/demo-run.tinyllama.json`](configs/demo-run.tinyllama.json) | `TinyLlama/TinyLlama-1.1B-Chat-v1.0` | +168.6% tok/s, −59.6% p95, −65.5% cost — [evidence](bench/results/2026-08-03-second-model-generalization-check.result.json) |
+
+TinyLlama is a genuinely different architecture family (Llama vs. Qwen2) and a
+different size class (1.1B vs. 0.5B) — not a relabeled rerun of the same model. It was
+launched with the literal command below, against the same real C4A + x86 pair, and
+completed cleanly on the first attempt with zero code changes: different quantization
+(still Q8_0, but core-pinned this time), different KV-cache precision (int8 vs. fp16),
+different winning thread count — the tuner found a different optimum for a different
+model, exactly as it should.
 
 To point Clusius at either one (or your own — copy the file and change `model_ref`):
 
@@ -637,7 +652,7 @@ Clusius/
 
 | Asset | Source | Notes |
 |---|---|---|
-| Model | [`Qwen/Qwen2.5-0.5B-Instruct`](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct) | Public HF model, downloaded and quantized fresh on the target for every run — no pre-baked artifacts committed |
+| Model | [`Qwen/Qwen2.5-0.5B-Instruct`](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct), [`TinyLlama/TinyLlama-1.1B-Chat-v1.0`](https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0) | Public HF models, downloaded and quantized fresh on the target for every run — no pre-baked artifacts committed; two different architecture families, both validated live (see [Migration Recipe](#migration-recipe-point-this-at-your-own-model)) |
 | llama.cpp source | Pinned upstream commit `caa596ab3f0f8768ee326d6e3d5d39782194676c` | Verified against the real `ggml-org/llama.cpp` repo, not assumed — the `GGML_CPU_KLEIDIAI` flag name was checked against this exact commit's `CMakeLists.txt` |
 | Benchmark load profile | `clusius_core.bench.load_generator` | Deterministic, seeded request generation so baseline and Arm runs see the identical traffic pattern |
 | Result schema | `bench/schema/result.schema.json` | Open and versioned in this repo — any team's `result.json` can be validated against it independently |
@@ -686,13 +701,6 @@ underlying endpoints, no `curl` required.
   pub/sub code path a live run uses, spaced out at a live pace — every *number* is
   real. The only thing it fakes is *when* each step lands; it does not SSH into
   anything, build any image, or run any inference.
-- **`configs/demo-run.tinyllama.json` is a template, not yet a proven result.** The
-  architecture is genuinely model-agnostic (see [Migration
-  Recipe](#migration-recipe-point-this-at-your-own-model)), but as of this writing that
-  specific config hasn't been run against the live target pair — there's no committed
-  `bench/results/` evidence for TinyLlama yet, only for Qwen2.5-0.5B. Don't read it as
-  "this exact model was validated"; read it as "here's exactly how you'd validate a
-  different one."
 - **The committed headline run used a 4-trial budget**, sized to keep a real test
   session's cloud spend small, not because the search space is small — a larger
   `search_budget_trials` explores more of the quantization/threading/batching grid and
