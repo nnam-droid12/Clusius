@@ -72,6 +72,8 @@ real, live on-demand list price for `c4a-standard-2` / `c4-standard-2` in `us-ce
 (pulled from the Cloud Billing Catalog API, not guessed), so the cost numbers below are
 genuinely priced, not a placeholder.
 
+![Clusius system architecture — browser dashboard, FastAPI + arq on Cloud Run, the five-stage clusius_core pipeline, and the two real SSH-driven hardware targets](docs/architecture-diagram.png)
+
 ---
 
 ## Headline Result
