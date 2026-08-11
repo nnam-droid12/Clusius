@@ -412,6 +412,24 @@ after step 3.** Every number it shows is real and traceable to `bench/results/` 
 - (Optional) A GCP project with the Compute Engine API enabled, if you want to use
   provisioned mode instead of bringing your own target pair
 
+> **No GNU Make?** `make` isn't installed by default on Windows — not in plain CMD/PowerShell,
+> and not in Git Bash either, since MinGW doesn't bundle it. Every `make <target>` command
+> below is a two-or-three-line convenience wrapper, not a hard dependency — here's the raw
+> equivalent for each one:
+>
+> | `make <target>` | Raw equivalent |
+> |---|---|
+> | `make setup` | `uv sync --all-packages` then `cd packages/web && npm install` |
+> | `make dev` | Three separate terminals: `docker compose up -d postgres redis` · `uv run --package clusius-api uvicorn clusius_api.main:app --port 8000` · `cd packages/web && npm run dev` |
+> | `make db-upgrade` | `uv run --package clusius-api alembic -c packages/api/alembic.ini upgrade head` |
+> | `make demo-replay` | `uv run --package clusius-api alembic -c packages/api/alembic.ini upgrade head` then `uv run --package clusius-api python -m clusius_api.scripts.demo_replay` (needs `postgres`/`redis` up first) |
+> | `make demo` | `curl -X POST http://localhost:8000/runs -H "content-type: application/json" -d @configs/demo-run.qwen.json` (swap the file for `MODEL_CONFIG`) |
+> | `make test` | `uv run pytest packages/core/tests packages/api/tests packages/agent/tests` then `cd packages/web && npm run test` |
+> | `make lint` | `uv run ruff check .` then `cd packages/web && npm run lint` |
+> | `make typecheck` | `uv run mypy packages/core packages/api packages/agent` then `cd packages/web && npm run typecheck` |
+>
+> (On Windows, installing Make isn't required, but if you'd rather have it: `winget install GnuWin32.Make` or `choco install make`.)
+
 ### 1. Clone and install
 
 ```bash
@@ -419,6 +437,8 @@ git clone https://github.com/nnam-droid12/Clusius.git
 cd Clusius
 make setup       # uv sync --all-packages + npm install for the dashboard
 ```
+
+No `make`? See the [table above](#prerequisites) — every command here has a raw equivalent.
 
 ### 2. Configure your Arm target pair (path A — skip if going straight to the replay fallback)
 
@@ -451,6 +471,9 @@ access (to pull the llama.cpp source and the target HF model) and Docker install
 ```bash
 make dev    # starts postgres + redis (docker compose), the API, and the dashboard
 ```
+
+No `make`? Run these in three separate terminals (see the [table above](#prerequisites)):
+`docker compose up -d postgres redis`, then `uv run --package clusius-api uvicorn clusius_api.main:app --port 8000`, then `cd packages/web && npm run dev`.
 
 ### 4a. Launch a real migration run (path A — real Arm hardware)
 
@@ -487,6 +510,12 @@ step 3 running locally:
 make demo-replay
 ```
 
+No `make`? (This is the important one if you're on Windows — see the [table above](#prerequisites)):
+```bash
+uv run --package clusius-api alembic -c packages/api/alembic.ini upgrade head
+uv run --package clusius-api python -m clusius_api.scripts.demo_replay
+```
+
 This finds the most recent real run's evidence already committed to `bench/results/`
 (currently the run documented in [Proof](#proof-a-real-live-end-to-end-run):
 `2026-08-01-real-e2e-validation-13`), and replays it through the *exact same* code path
@@ -518,6 +547,8 @@ make test        # pytest across core/api/agent + the dashboard's test suite
 make lint         # ruff + npm lint
 make typecheck    # mypy --strict + npm typecheck
 ```
+
+(No `make`? Raw commands for all three are in the [table above](#prerequisites).)
 
 ### Provisioned mode (opt-in — Clusius creates the target pair itself)
 
@@ -567,6 +598,9 @@ To point Clusius at either one (or your own — copy the file and change `model_
 make demo                                              # uses configs/demo-run.qwen.json
 make demo MODEL_CONFIG=configs/demo-run.tinyllama.json # or any config you write
 ```
+
+No `make`? — `curl -X POST http://localhost:8000/runs -H "content-type: application/json" -d @configs/demo-run.qwen.json`
+(swap the filename for a different model).
 
 This is the same `POST /runs` the dashboard's "Launch a run" form calls — `make demo` is
 just the fastest way to fire one without opening a browser. Any model
