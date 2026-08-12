@@ -105,3 +105,15 @@ export interface RunEvent {
   status: string;
   [key: string]: unknown;
 }
+
+export interface RunSummary {
+  id: string;
+  status: RunStatus;
+  target_mode: TargetMode;
+  selected_backend: Backend | null;
+  created_at: string;
+  updated_at: string;
+  workload_name: string;
+  model_ref: string;
+  results: ResultRow[];
+}

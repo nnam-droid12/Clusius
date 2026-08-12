@@ -9,6 +9,10 @@ export function useRuns() {
   return useQuery({ queryKey: ["runs"], queryFn: api.listRuns, refetchInterval: 5_000 });
 }
 
+export function useResults() {
+  return useQuery({ queryKey: ["results"], queryFn: api.listResults });
+}
+
 export function useRun(id: string) {
   return useQuery({
     queryKey: ["runs", id],

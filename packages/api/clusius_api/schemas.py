@@ -89,3 +89,20 @@ class RunDetailOut(RunOut):
     trials: list[TrialOut] = []
     results: list[ResultOut] = []
     artifacts: list[ArtifactOut] = []
+
+
+class RunSummaryOut(BaseModel):
+    """Lighter than RunDetailOut — just enough per run to render a results gallery
+    (workload identity + baseline/winner results) without the full trial history."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    status: str
+    target_mode: str
+    selected_backend: str | None
+    created_at: datetime
+    updated_at: datetime
+    workload_name: str
+    model_ref: str
+    results: list[ResultOut] = []

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -12,7 +14,7 @@ from starlette.responses import StreamingResponse
 from clusius_api.db.models import Artifact, Result, Run, Workload
 from clusius_api.db.session import get_session
 from clusius_api.jobs.queue import get_arq_pool, run_events_channel
-from clusius_api.schemas import RunCreate, RunDetailOut, RunOut
+from clusius_api.schemas import ResultOut, RunCreate, RunDetailOut, RunOut, RunSummaryOut
 
 router = APIRouter()
 
@@ -74,7 +76,7 @@ async def run_events(
     if run is None:
         raise HTTPException(status_code=404, detail="run not found")
 
-    async def event_stream():
+    async def event_stream() -> AsyncGenerator[str]:
         pool = await get_arq_pool()
         pubsub = pool.pubsub()
         await pubsub.subscribe(run_events_channel(run_id))
@@ -92,13 +94,15 @@ async def run_events(
                 await asyncio.sleep(0)
         finally:
             await pubsub.unsubscribe(run_events_channel(run_id))
-            await pubsub.aclose()
+            await pubsub.aclose()  # type: ignore[no-untyped-call]  # redis-py's own stub is incomplete here
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("/runs/{run_id}/report")
-async def get_run_report(run_id: str, session: AsyncSession = Depends(get_session)) -> dict:
+async def get_run_report(
+    run_id: str, session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
     result = await session.execute(
         select(Artifact)
         .where(Artifact.run_id == run_id, Artifact.kind == "report_markdown")
@@ -117,7 +121,9 @@ async def get_run_report(run_id: str, session: AsyncSession = Depends(get_sessio
 
 
 @router.get("/runs/{run_id}/result.json")
-async def get_run_result(run_id: str, session: AsyncSession = Depends(get_session)) -> dict:
+async def get_run_result(
+    run_id: str, session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
     result = await session.execute(
         select(Result).where(Result.run_id == run_id).order_by(Result.created_at.desc())
     )
@@ -127,9 +133,28 @@ async def get_run_result(run_id: str, session: AsyncSession = Depends(get_sessio
     return row.result_json
 
 
-@router.get("/results", response_model=list[RunOut])
-async def list_results(session: AsyncSession = Depends(get_session)) -> list[Run]:
+@router.get("/results", response_model=list[RunSummaryOut])
+async def list_results(session: AsyncSession = Depends(get_session)) -> list[RunSummaryOut]:
+    """Every completed run as a results-gallery summary — workload identity plus
+    baseline/winner results, without the full trial history RunDetailOut carries."""
     result = await session.execute(
-        select(Run).where(Run.status == "completed").order_by(Run.updated_at.desc())
+        select(Run)
+        .where(Run.status == "completed")
+        .options(selectinload(Run.workload), selectinload(Run.results))
+        .order_by(Run.updated_at.desc())
     )
-    return list(result.scalars().all())
+    runs = result.scalars().all()
+    return [
+        RunSummaryOut(
+            id=run.id,
+            status=run.status,
+            target_mode=run.target_mode,
+            selected_backend=run.selected_backend,
+            created_at=run.created_at,
+            updated_at=run.updated_at,
+            workload_name=run.workload.name,
+            model_ref=run.workload.model_ref,
+            results=[ResultOut.model_validate(r) for r in run.results],
+        )
+        for run in runs
+    ]

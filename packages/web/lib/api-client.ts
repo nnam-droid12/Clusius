@@ -1,4 +1,4 @@
-import type { Run, RunCreateInput, RunDetail } from "./types";
+import type { Run, RunCreateInput, RunDetail, RunSummary } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -22,7 +22,7 @@ export const api = {
   getRunResult: (id: string) => request<Record<string, unknown>>(`/runs/${id}/result.json`),
   getRunReport: (id: string) =>
     request<{ content: string; created_at: string }>(`/runs/${id}/report`),
-  listResults: () => request<Run[]>("/results"),
+  listResults: () => request<RunSummary[]>("/results"),
   eventsUrl: (id: string) => `${API_URL}/runs/${id}/events`,
 };
 

@@ -22,9 +22,12 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from arq import ArqRedis
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from clusius_api.db.models import Artifact, Result, Run, Trial, Workload
 from clusius_api.db.session import SessionLocal
-from clusius_api.jobs.queue import ArqRedis, get_arq_pool, publish_event
+from clusius_api.jobs.queue import get_arq_pool, publish_event
 from clusius_api.settings import ApiSettings
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -81,7 +84,7 @@ def _latest_evidence() -> tuple[dict[str, Any], str]:
 
 
 async def _set_stage(
-    session, pool: ArqRedis, run: Run, stage: str, status: str, **extra: Any
+    session: AsyncSession, pool: ArqRedis, run: Run, stage: str, status: str, **extra: Any
 ) -> None:
     run.stage = stage
     run.status = status
@@ -89,6 +92,18 @@ async def _set_stage(
     await session.commit()
     await publish_event(pool, run.id, {"stage": stage, "status": status, **extra})
     await asyncio.sleep(STAGE_DELAY_S)
+
+
+def _model_ref(run_detail: dict[str, Any]) -> str:
+    """The evidence file doesn't carry the workload's model_ref directly (RunDetailOut
+    has no such field) - every persisted result does, via model_hash (pipeline.py sets
+    that to the real hf_model_id), so pull it from there instead of hardcoding a
+    specific model that may not match whichever run is actually being replayed."""
+    for result in run_detail.get("results", []):
+        model_hash = result.get("result_json", {}).get("model_hash")
+        if model_hash:
+            return str(model_hash)
+    return "unknown"
 
 
 async def _replay() -> None:
@@ -99,7 +114,7 @@ async def _replay() -> None:
     async with SessionLocal() as session:
         workload = Workload(
             name=f"[replay] {run_detail.get('workload_id', 'real-run')}",
-            model_ref="Qwen/Qwen2.5-0.5B-Instruct",
+            model_ref=_model_ref(run_detail),
             description=(
                 "Zero-cost local replay of a real, committed Clusius run — every number "
                 "is real, only the timing is simulated. See bench/results/ and the "
