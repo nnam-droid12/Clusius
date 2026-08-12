@@ -8,6 +8,7 @@ opaque call.
 from __future__ import annotations
 
 import time
+from typing import Any, Protocol
 
 from clusius_agent import generator, router
 from clusius_agent.mcp.client import MCPToolClient
@@ -15,9 +16,18 @@ from clusius_agent.models import PipelineResult, RetrievedChunk, StageTrace
 from clusius_agent.settings import AgentSettings
 
 
+class SupportsRetrieval(Protocol):
+    """The two methods Pipeline actually calls on its MCP client - narrow structural
+    type so a test double doesn't need to inherit from MCPToolClient (which would
+    pull in real stdio-subprocess machinery it doesn't need)."""
+
+    async def search_docs(self, query: str, top_k: int = 3) -> list[dict[str, Any]]: ...
+    async def web_search(self, query: str, max_results: int = 5) -> list[dict[str, Any]]: ...
+
+
 class Pipeline:
     def __init__(
-        self, settings: AgentSettings | None = None, mcp_client: MCPToolClient | None = None
+        self, settings: AgentSettings | None = None, mcp_client: SupportsRetrieval | None = None
     ) -> None:
         self.settings = settings or AgentSettings()
         self.mcp_client = mcp_client or MCPToolClient()

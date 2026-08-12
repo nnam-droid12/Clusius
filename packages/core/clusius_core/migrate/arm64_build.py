@@ -17,10 +17,10 @@ _DOCKERFILES: dict[Backend, str] = {
     "vllm": "infra/docker/vllm-acl.Dockerfile",
 }
 
-Runner = Callable[[list[str]], subprocess.CompletedProcess]
+Runner = Callable[[list[str]], subprocess.CompletedProcess[str]]
 
 
-def _default_runner(cmd: list[str]) -> subprocess.CompletedProcess:
+def _default_runner(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 

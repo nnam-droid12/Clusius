@@ -8,6 +8,33 @@ on:
 jobs:
   python:
     runs-on: ubuntu-latest
+    # packages/api/tests needs a real Postgres (its own tests, run for real against a
+    # live DB, not mocked) and Redis (the /runs endpoint enqueues a real arq job on
+    # every POST). Ports match packages/api/tests/conftest.py's TEST_DATABASE_URL and
+    # ApiSettings' default redis_url respectively.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: clusius
+          POSTGRES_PASSWORD: clusius
+          POSTGRES_DB: clusius_test
+        ports:
+          - "55433:5432"
+        options: >-
+          --health-cmd "pg_isready -U clusius"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
@@ -18,9 +45,19 @@ jobs:
       - name: Lint
         run: uv run ruff check .
       - name: Typecheck
-        run: uv run mypy packages/core packages/api packages/agent
+        run: |
+          uv run mypy packages/core
+          uv run mypy packages/api
+          uv run mypy packages/agent
+      - name: Migrate test database
+        run: uv run --package clusius-api alembic -c packages/api/alembic.ini upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://clusius:clusius@localhost:55433/clusius_test
       - name: Test
-        run: uv run pytest packages/core/tests packages/api/tests packages/agent/tests
+        run: |
+          uv run pytest packages/core/tests
+          uv run pytest packages/api/tests
+          uv run pytest packages/agent/tests
 
   web:
     runs-on: ubuntu-latest
@@ -40,10 +77,15 @@ jobs:
       - run: npm run test
 
   arm64-images:
-    runs-on: ubuntu-latest
+    # Native Arm64 runner, not QEMU emulation on ubuntu-latest: cross-compiling
+    # llama.cpp (and vLLM's build) under user-mode QEMU emulation was slow enough to
+    # hit GitHub Actions' 6-hour job timeout on every run, so this check had never
+    # actually completed. Building natively on real Arm64 hardware is both correct
+    # (no emulation-only bugs to worry about) and fast enough to finish normally.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - name: Build llama.cpp+KleidiAI arm64 image
         uses: docker/build-push-action@v6

@@ -14,11 +14,11 @@ from clusius_core.migrate.quantize import (
 )
 
 
-def _ok_result(cmd: list[str]) -> subprocess.CompletedProcess:
+def _ok_result(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
 
 
-def _fail_result(cmd: list[str]) -> subprocess.CompletedProcess:
+def _fail_result(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="boom")
 
 

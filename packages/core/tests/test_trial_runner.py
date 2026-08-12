@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from clusius_core.migrate import deploy
@@ -14,8 +15,8 @@ from clusius_core.tune.trial_runner import (
 )
 
 
-def _context(**overrides) -> RemoteTrialContext:
-    defaults = dict(
+def _context(**overrides: Any) -> RemoteTrialContext:
+    defaults: dict[str, Any] = dict(
         runner=object(),
         target_host="10.0.0.5",
         instance_type="c4a-standard-2",
@@ -35,8 +36,8 @@ def _context(**overrides) -> RemoteTrialContext:
     return RemoteTrialContext(**defaults)
 
 
-def _trial_config(**overrides) -> TrialConfig:
-    defaults = dict(
+def _trial_config(**overrides: Any) -> TrialConfig:
+    defaults: dict[str, Any] = dict(
         backend="llamacpp",
         quant="Q4_K_M",
         threads=4,
@@ -49,8 +50,8 @@ def _trial_config(**overrides) -> TrialConfig:
     return TrialConfig(**defaults)
 
 
-def _fake_result(**overrides) -> BenchmarkResult:
-    defaults = dict(
+def _fake_result(**overrides: Any) -> BenchmarkResult:
+    defaults: dict[str, Any] = dict(
         run_id="trial-1",
         timestamp=datetime.now(UTC),
         commit_sha="abc123",
@@ -77,21 +78,23 @@ async def test_deploy_and_benchmark_starts_server_waits_and_benchmarks(
 ) -> None:
     calls: list[str] = []
 
-    def fake_start_llamacpp(runner, image_tag, model_path, config, port):
+    def fake_start_llamacpp(
+        runner: Any, image_tag: Any, model_path: Any, config: Any, port: Any
+    ) -> None:
         calls.append("start")
         assert model_path == "/models/qwen-q4km.gguf"
 
-    async def fake_wait_for_health(url, **kwargs):
+    async def fake_wait_for_health(url: Any, **kwargs: Any) -> None:
         calls.append("health")
         assert url == "http://10.0.0.5:8080"
 
-    async def fake_run_benchmark(bench_config):
+    async def fake_run_benchmark(bench_config: Any) -> tuple[Any, list[Any], list[Any]]:
         calls.append("benchmark")
         assert bench_config.base_url == "http://10.0.0.5:8080/v1"
         assert bench_config.accuracy_score == 0.93
         return _fake_result(), [], []
 
-    def fake_stop(runner):
+    def fake_stop(runner: Any) -> None:
         calls.append("stop")
 
     monkeypatch.setattr(deploy, "start_llamacpp_server", fake_start_llamacpp)
@@ -110,13 +113,15 @@ async def test_deploy_and_benchmark_stops_server_even_on_failure(
 ) -> None:
     stopped = []
 
-    def fake_start_llamacpp(runner, image_tag, model_path, config, port):
+    def fake_start_llamacpp(
+        runner: Any, image_tag: Any, model_path: Any, config: Any, port: Any
+    ) -> None:
         pass
 
-    async def fake_wait_for_health(url, **kwargs):
+    async def fake_wait_for_health(url: Any, **kwargs: Any) -> None:
         raise TimeoutError("never came up")
 
-    def fake_stop(runner):
+    def fake_stop(runner: Any) -> None:
         stopped.append(True)
 
     monkeypatch.setattr(deploy, "start_llamacpp_server", fake_start_llamacpp)
@@ -145,7 +150,7 @@ async def test_deploy_and_benchmark_raises_on_missing_accuracy_score(
 async def test_deploy_and_benchmark_raises_when_requests_fail(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_run_benchmark(bench_config):
+    async def fake_run_benchmark(bench_config: Any) -> tuple[Any, list[Any], list[Any]]:
         return _fake_result(), [], ["some failure"]
 
     monkeypatch.setattr(deploy, "start_llamacpp_server", lambda *a, **k: None)
@@ -158,7 +163,7 @@ async def test_deploy_and_benchmark_raises_when_requests_fail(
 
 
 def test_make_trial_evaluator_runs_synchronously(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_deploy_and_benchmark(ctx, config):
+    async def fake_deploy_and_benchmark(ctx: Any, config: Any) -> BenchmarkResult:
         return _fake_result()
 
     monkeypatch.setattr(trial_runner_module, "deploy_and_benchmark", fake_deploy_and_benchmark)
@@ -169,5 +174,5 @@ def test_make_trial_evaluator_runs_synchronously(monkeypatch: pytest.MonkeyPatch
     assert isinstance(result, BenchmarkResult)
 
 
-async def _async_none():
+async def _async_none() -> None:
     return None

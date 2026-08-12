@@ -5,11 +5,11 @@ import pytest
 from clusius_core.migrate.arm64_build import Arm64BuildConfig, build_arm64_image, build_command
 
 
-def _ok(stderr: str = "") -> subprocess.CompletedProcess:
+def _ok(stderr: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess([], returncode=0, stdout="", stderr=stderr)
 
 
-def _fail() -> subprocess.CompletedProcess:
+def _fail() -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(
         [], returncode=1, stdout="", stderr="build failed: missing base image"
     )

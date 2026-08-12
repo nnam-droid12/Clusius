@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 
 from clusius_agent.mcp.docs_server import DocIndex
 
@@ -12,7 +13,7 @@ def test_search_ranks_relevant_doc_first() -> None:
 
     assert results
     assert results[0]["source"] == "kleidiai.md"
-    assert results[0]["score"] > 0
+    assert cast(float, results[0]["score"]) > 0
 
 
 def test_search_returns_nothing_for_unrelated_query() -> None:

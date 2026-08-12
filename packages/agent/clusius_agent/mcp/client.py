@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Any
+from typing import Any, cast
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.types import TextContent
 
 
 async def _call_tool(module: str, tool_name: str, arguments: dict[str, Any]) -> Any:
@@ -27,6 +28,11 @@ async def _call_tool(module: str, tool_name: str, arguments: dict[str, Any]) -> 
                     return result.structured_content["result"]
                 return result.structured_content
             (content,) = result.content
+            if not isinstance(content, TextContent):
+                raise RuntimeError(
+                    f"MCP tool {tool_name!r} in {module!r} returned non-text content: "
+                    f"{type(content).__name__}"
+                )
             return json.loads(content.text)
 
 
@@ -42,9 +48,15 @@ class MCPToolClient:
         self.search_module = search_module
 
     async def search_docs(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
-        return await _call_tool(self.docs_module, "search_docs", {"query": query, "top_k": top_k})
+        return cast(
+            list[dict[str, Any]],
+            await _call_tool(self.docs_module, "search_docs", {"query": query, "top_k": top_k}),
+        )
 
     async def web_search(self, query: str, max_results: int = 5) -> list[dict[str, Any]]:
-        return await _call_tool(
-            self.search_module, "web_search", {"query": query, "max_results": max_results}
+        return cast(
+            list[dict[str, Any]],
+            await _call_tool(
+                self.search_module, "web_search", {"query": query, "max_results": max_results}
+            ),
         )

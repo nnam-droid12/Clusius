@@ -20,12 +20,14 @@ import json
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
+from arq import ArqRedis
 from clusius_core.analyze.scanner import scan_workload
 from clusius_core.bench.runner import BenchmarkRunConfig, run_benchmark
 from clusius_core.migrate.ssh_runner import TargetHost
 from clusius_core.pipeline import PipelineConfig, run_full_pipeline
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from clusius_api.db.models import Artifact, Result, Run, Trial, Workload
 from clusius_api.db.session import SessionLocal
@@ -46,7 +48,9 @@ def _current_commit_sha() -> str:
         return "unknown"
 
 
-async def _set_stage(session, redis, run: Run, stage: str, status: str, **extra: Any) -> None:
+async def _set_stage(
+    session: AsyncSession, redis: ArqRedis, run: Run, stage: str, status: str, **extra: Any
+) -> None:
     run.stage = stage
     run.status = status
     session.add(run)
@@ -54,7 +58,9 @@ async def _set_stage(session, redis, run: Run, stage: str, status: str, **extra:
     await publish_event(redis, run.id, {"stage": stage, "status": status, **extra})
 
 
-async def _record_trial(session, redis, run: Run, trial: dict) -> None:
+async def _record_trial(
+    session: AsyncSession, redis: ArqRedis, run: Run, trial: dict[str, Any]
+) -> None:
     """Persists one Optuna trial the instant it finishes, rather than waiting for the
     whole search to complete — this is what lets the dashboard's Pareto chart populate
     live, trial by trial, while `tune` is still running (it re-polls `GET
@@ -82,14 +88,14 @@ async def _record_trial(session, redis, run: Run, trial: dict) -> None:
 
 
 def _make_on_event(
-    loop: asyncio.AbstractEventLoop, session, redis, run: Run
-) -> Callable[[str, str, dict], None]:
+    loop: asyncio.AbstractEventLoop, session: AsyncSession, redis: ArqRedis, run: Run
+) -> Callable[[str, str, dict[str, Any]], None]:
     """`run_full_pipeline` runs synchronously inside `asyncio.to_thread`, so its
     `on_event` callback fires from a worker thread — bridge each event back onto the
     main event loop (where `session`/`redis` actually live) and block the worker
     thread until it's persisted, so stage/trial order is preserved."""
 
-    def on_event(stage: str, status: str, extra: dict) -> None:
+    def on_event(stage: str, status: str, extra: dict[str, Any]) -> None:
         if stage == "tune" and status == "trial":
             coro = _record_trial(session, redis, run, extra)
         else:
@@ -101,8 +107,13 @@ def _make_on_event(
 
 
 async def _run_full_ssh_pipeline(
-    session, redis, run: Run, workload: Workload, settings: ApiSettings
+    session: AsyncSession, redis: ArqRedis, run: Run, workload: Workload, settings: ApiSettings
 ) -> None:
+    # Callers only reach here once settings.ssh_targets_configured is True, which is
+    # exactly the check that guarantees both hosts are real strings - asserted here so
+    # that guarantee is visible at this function's boundary too, not just the caller's.
+    assert settings.target_arm_host is not None
+    assert settings.target_x86_host is not None
     arm_target = TargetHost(
         host=settings.target_arm_host,
         user=settings.target_arm_user,
@@ -161,7 +172,9 @@ async def _run_full_ssh_pipeline(
     await session.commit()
 
 
-async def _run_analyze_and_optional_benchmark(session, redis, run: Run, workload: Workload) -> None:
+async def _run_analyze_and_optional_benchmark(
+    session: AsyncSession, redis: ArqRedis, run: Run, workload: Workload
+) -> None:
     await _set_stage(session, redis, run, "analyze", "running")
     blocker_count = 0
     if workload.source_path and Path(workload.source_path).is_dir():
@@ -189,7 +202,11 @@ async def _run_analyze_and_optional_benchmark(session, redis, run: Run, workload
             backend="llamacpp",
             quant="unknown",
             instance_type=run.target_instance_type or "unknown",
-            arch=run.target_arch or "x86_64",
+            # RunCreate.target_arch is a validated Literal["x86_64", "aarch64"] | None
+            # at the API boundary (schemas.py) - the column itself is a plain str
+            # because SQLAlchemy has no Literal column type, so this is a real
+            # guarantee mypy just can't see across the ORM boundary.
+            arch=cast(Literal["x86_64", "aarch64"], run.target_arch or "x86_64"),
             price_per_hour=run.target_price_per_hour or 0.0,
             threads=1,
             accuracy_score=1.0,
@@ -208,7 +225,9 @@ async def _run_analyze_and_optional_benchmark(session, redis, run: Run, workload
         )
 
 
-async def run_pipeline(ctx: dict, run_id: str, settings: ApiSettings | None = None) -> None:
+async def run_pipeline(
+    ctx: dict[str, Any], run_id: str, settings: ApiSettings | None = None
+) -> None:
     """`settings` is normally left unset — arq always calls this as `run_pipeline(ctx,
     run_id)`, and it defaults to reading the real environment/`.env`. The parameter
     exists so tests can inject an isolated `ApiSettings(_env_file=None)` instead of
@@ -222,6 +241,15 @@ async def run_pipeline(ctx: dict, run_id: str, settings: ApiSettings | None = No
         if run is None:
             return
         workload = await session.get(Workload, run.workload_id)
+        if workload is None:
+            # The FK guarantees this can't happen outside a corrupted DB - fail loudly
+            # rather than pass None past this point and hit a confusing AttributeError
+            # deep inside the pipeline.
+            run.status = "failed"
+            run.error_message = f"workload {run.workload_id} not found for run {run.id}"
+            session.add(run)
+            await session.commit()
+            return
 
         try:
             if run.target_mode == "target" and settings.ssh_targets_configured:

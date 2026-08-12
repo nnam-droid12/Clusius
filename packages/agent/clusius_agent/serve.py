@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -43,7 +43,7 @@ class ChatCompletionResponse(BaseModel):
     created: int
     model: str
     choices: list[ChatChoice]
-    clusius_trace: list[dict] = []
+    clusius_trace: list[dict[str, Any]] = []
 
 
 @app.get("/health")

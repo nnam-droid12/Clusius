@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 import optuna
 
@@ -32,7 +33,7 @@ class TunerConfig:
 
 
 def _constraints_func(trial: optuna.trial.FrozenTrial) -> tuple[float, float]:
-    return trial.user_attrs["constraint"]
+    return cast(tuple[float, float], trial.user_attrs["constraint"])
 
 
 def run_search(

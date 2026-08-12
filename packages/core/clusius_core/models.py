@@ -9,7 +9,7 @@ another team's tooling, the web dashboard) gets a stable, documented contract.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -63,7 +63,7 @@ class BenchmarkResult(BaseModel):
     baseline_ref: str | None = None
     notes: str | None = None
 
-    def to_schema_dict(self) -> dict:
+    def to_schema_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict matching `bench/schema/result.schema.json`
         exactly (ISO-8601 timestamp, no null-only defaults omitted implicitly)."""
         return self.model_dump(mode="json", exclude_none=True)

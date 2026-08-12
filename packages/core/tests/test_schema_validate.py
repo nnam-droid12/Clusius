@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from clusius_core.bench.schema_validate import validate_result
 from clusius_core.models import BenchmarkResult, LatencyPercentiles, ThroughputMetrics, utcnow
@@ -5,8 +7,8 @@ from jsonschema import ValidationError
 from pydantic import ValidationError as PydanticValidationError
 
 
-def _valid_result(**overrides) -> BenchmarkResult:
-    defaults = dict(
+def _valid_result(**overrides: Any) -> BenchmarkResult:
+    defaults: dict[str, Any] = dict(
         run_id="test-run-1",
         timestamp=utcnow(),
         commit_sha="abc123",

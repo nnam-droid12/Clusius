@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from clusius_core.analyze.scanner import AnalysisReport, scan_workload
 from clusius_core.migrate import deploy, model_prep
@@ -30,10 +31,10 @@ from clusius_core.tune.trial_runner import RemoteTrialContext, make_trial_evalua
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 LLAMACPP_DOCKERFILE = _REPO_ROOT / "infra" / "docker" / "llamacpp-kleidi.Dockerfile"
 
-StageEvent = Callable[[str, str, dict], None]
+StageEvent = Callable[[str, str, dict[str, Any]], None]
 
 
-def _noop_event(stage: str, status: str, extra: dict) -> None:
+def _noop_event(stage: str, status: str, extra: dict[str, Any]) -> None:
     return None
 
 

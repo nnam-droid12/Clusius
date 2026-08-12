@@ -6,13 +6,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Any
 
 import httpx
 import pytest
 from clusius_core.bench.load_generator import LoadTestConfig, run_load_test
 
 
-async def _fake_openai_app(scope, receive, send):
+async def _fake_openai_app(scope: Any, receive: Any, send: Any) -> None:
     assert scope["type"] == "http"
     await receive()
     await send(
@@ -34,7 +35,7 @@ async def _fake_openai_app(scope, receive, send):
 def patched_client(monkeypatch: pytest.MonkeyPatch) -> None:
     real_async_client = httpx.AsyncClient
 
-    def fake_async_client(*args, **kwargs):
+    def fake_async_client(*args: Any, **kwargs: Any) -> httpx.AsyncClient:
         kwargs.pop("base_url", None)
         return real_async_client(
             transport=httpx.ASGITransport(app=_fake_openai_app), base_url="http://test", **kwargs

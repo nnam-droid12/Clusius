@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 from clusius_core.migrate.ssh_runner import CommandResult, TargetHost, TargetRunner
@@ -12,7 +13,9 @@ class _FakeRunResult:
 
 
 class _FakeConnection:
-    def __init__(self, script: dict[str, _FakeRunResult], calls: list, **kwargs) -> None:
+    def __init__(
+        self, script: dict[str, _FakeRunResult], calls: list[Any], **kwargs: Any
+    ) -> None:
         self.kwargs = kwargs
         self._script = script
         self._calls = calls
@@ -35,8 +38,8 @@ def _make_target() -> TargetHost:
 
 
 def _make_runner(
-    script: dict | None = None, calls: list | None = None
-) -> tuple[TargetRunner, list]:
+    script: dict[str, _FakeRunResult] | None = None, calls: list[Any] | None = None
+) -> tuple[TargetRunner, list[Any]]:
     calls = calls if calls is not None else []
     script = script or {}
     factory = lambda **kw: _FakeConnection(script, calls, **kw)  # noqa: E731

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from clusius_core.analyze.scanner import Finding
 from clusius_core.models import BenchmarkResult, LatencyPercentiles, ThroughputMetrics, utcnow
@@ -10,8 +11,8 @@ from clusius_core.report.generator import (
 from clusius_core.tune.search_space import TrialConfig
 
 
-def _result(**overrides) -> BenchmarkResult:
-    defaults = dict(
+def _result(**overrides: Any) -> BenchmarkResult:
+    defaults: dict[str, Any] = dict(
         run_id="r1",
         timestamp=utcnow(),
         commit_sha="abc123",
@@ -33,7 +34,7 @@ def _result(**overrides) -> BenchmarkResult:
     return BenchmarkResult(**defaults)
 
 
-def _inputs(**overrides) -> MigrationReportInputs:
+def _inputs(**overrides: Any) -> MigrationReportInputs:
     baseline = _result(
         arch="x86_64",
         instance_type="c4-standard-16",
@@ -54,7 +55,7 @@ def _inputs(**overrides) -> MigrationReportInputs:
         kv_cache_precision="int8",
         context_length=4096,
     )
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         workload_name="showcase-agent",
         model_ref="qwen2.5-7b-instruct",
         commit_sha="abc123",

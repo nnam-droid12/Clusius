@@ -1,11 +1,12 @@
 from pathlib import Path
+from typing import Any
 
 from clusius_core.bench.charts import plot_cost_comparison, plot_pareto_frontier
 from clusius_core.models import BenchmarkResult, LatencyPercentiles, ThroughputMetrics, utcnow
 
 
-def _result(**overrides) -> BenchmarkResult:
-    defaults = dict(
+def _result(**overrides: Any) -> BenchmarkResult:
+    defaults: dict[str, Any] = dict(
         run_id="r1",
         timestamp=utcnow(),
         commit_sha="abc123",

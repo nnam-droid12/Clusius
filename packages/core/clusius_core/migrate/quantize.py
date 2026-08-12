@@ -16,10 +16,10 @@ from typing import Literal
 
 GGUFQuantType = Literal["Q8_0", "Q4_K_M", "Q4_0", "Q4_K_S", "Q5_K_M", "Q6_K"]
 
-Runner = Callable[[list[str]], subprocess.CompletedProcess]
+Runner = Callable[[list[str]], subprocess.CompletedProcess[str]]
 
 
-def _default_runner(cmd: list[str]) -> subprocess.CompletedProcess:
+def _default_runner(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 

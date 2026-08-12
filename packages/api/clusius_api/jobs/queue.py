@@ -4,6 +4,7 @@ events) and the worker (to consume jobs)."""
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings
@@ -29,5 +30,5 @@ def run_events_channel(run_id: str) -> str:
     return f"clusius:run:{run_id}:events"
 
 
-async def publish_event(pool: ArqRedis, run_id: str, event: dict) -> None:
+async def publish_event(pool: ArqRedis, run_id: str, event: dict[str, Any]) -> None:
     await pool.publish(run_events_channel(run_id), json.dumps(event))

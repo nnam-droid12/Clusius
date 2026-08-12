@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from clusius_core.migrate import deploy, model_prep
@@ -9,13 +10,17 @@ from clusius_core.migrate.ssh_runner import TargetHost
 from clusius_core.models import BenchmarkResult, LatencyPercentiles, ThroughputMetrics
 from clusius_core.pipeline import PipelineConfig, run_full_pipeline
 from clusius_core.tune import trial_runner as trial_runner_module
+from clusius_core.tune.search_space import TrialConfig
+from clusius_core.tune.trial_runner import RemoteTrialContext
 
 # Deterministic synthetic model: accuracy always passes, throughput scales with
 # threads, so the search has a clear winner and the constraint machinery is real.
 _ACCURACY = 0.95
 
 
-async def _fake_deploy_and_benchmark(ctx, config) -> BenchmarkResult:
+async def _fake_deploy_and_benchmark(
+    ctx: RemoteTrialContext, config: TrialConfig
+) -> BenchmarkResult:
     throughput = 20.0 * config.threads
     return BenchmarkResult(
         run_id=f"trial-{config.threads}-{config.quant}",
@@ -42,24 +47,32 @@ async def _fake_deploy_and_benchmark(ctx, config) -> BenchmarkResult:
 
 
 @pytest.fixture(autouse=True)
-def _patch_infra(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
-    calls: dict[str, list] = {
+def _patch_infra(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[Any]]:
+    calls: dict[str, list[Any]] = {
         "docker_installed": [],
         "images_built": [],
         "models_prepared": [],
     }
 
-    def fake_docker_installed(runner):
+    def fake_docker_installed(runner: Any) -> None:
         calls["docker_installed"].append(runner)
 
     monkeypatch.setattr(deploy, "ensure_docker_installed", fake_docker_installed)
 
-    def fake_build_image(runner, dockerfile_path, tag, build_args=None):
+    def fake_build_image(
+        runner: Any, dockerfile_path: str, tag: str, build_args: dict[str, str] | None = None
+    ) -> None:
         calls["images_built"].append((tag, build_args))
 
     monkeypatch.setattr(deploy, "build_backend_image", fake_build_image)
 
-    def fake_prepare_models(runner, image_tag, hf_model_id, quant_types, workdir=None):
+    def fake_prepare_models(
+        runner: Any,
+        image_tag: str,
+        hf_model_id: str,
+        quant_types: list[str],
+        workdir: str | None = None,
+    ) -> dict[str, str]:
         calls["models_prepared"].append((image_tag, tuple(quant_types)))
         return {q: f"/models/{image_tag}-{q}.gguf" for q in quant_types}
 
@@ -69,8 +82,8 @@ def _patch_infra(monkeypatch: pytest.MonkeyPatch) -> dict[str, list]:
     return calls
 
 
-def _config(**overrides) -> PipelineConfig:
-    defaults = dict(
+def _config(**overrides: Any) -> PipelineConfig:
+    defaults: dict[str, Any] = dict(
         workload_name="showcase-agent",
         hf_model_id="Qwen/Qwen2.5-0.5B-Instruct",
         source_path=None,
@@ -92,7 +105,9 @@ def _config(**overrides) -> PipelineConfig:
     return PipelineConfig(**defaults)
 
 
-def test_run_full_pipeline_builds_both_images_with_kleidiai_toggle(_patch_infra: dict) -> None:
+def test_run_full_pipeline_builds_both_images_with_kleidiai_toggle(
+    _patch_infra: dict[str, list[Any]],
+) -> None:
     run_full_pipeline(_config())
 
     assert _patch_infra["images_built"] == [
@@ -101,14 +116,18 @@ def test_run_full_pipeline_builds_both_images_with_kleidiai_toggle(_patch_infra:
     ]
 
 
-def test_run_full_pipeline_prepares_models_on_both_targets(_patch_infra: dict) -> None:
+def test_run_full_pipeline_prepares_models_on_both_targets(
+    _patch_infra: dict[str, list[Any]],
+) -> None:
     run_full_pipeline(_config())
 
     tags = {tag for tag, _ in _patch_infra["models_prepared"]}
     assert tags == {"clusius-llamacpp:arm", "clusius-llamacpp:x86"}
 
 
-def test_run_full_pipeline_picks_higher_throughput_winner(_patch_infra: dict) -> None:
+def test_run_full_pipeline_picks_higher_throughput_winner(
+    _patch_infra: dict[str, list[Any]],
+) -> None:
     result = run_full_pipeline(_config())
 
     # threads=2 always yields double the throughput of threads=1 in the synthetic model
@@ -116,7 +135,9 @@ def test_run_full_pipeline_picks_higher_throughput_winner(_patch_infra: dict) ->
     assert result.winner_result.throughput.tokens_per_second == pytest.approx(40.0)
 
 
-def test_run_full_pipeline_benchmarks_baseline_on_x86_target(_patch_infra: dict) -> None:
+def test_run_full_pipeline_benchmarks_baseline_on_x86_target(
+    _patch_infra: dict[str, list[Any]],
+) -> None:
     result = run_full_pipeline(_config())
 
     assert result.baseline_result.arch == "x86_64"
@@ -125,7 +146,7 @@ def test_run_full_pipeline_benchmarks_baseline_on_x86_target(_patch_infra: dict)
     assert result.baseline_result.threads == result.winner_config.threads
 
 
-def test_run_full_pipeline_generates_a_report(_patch_infra: dict) -> None:
+def test_run_full_pipeline_generates_a_report(_patch_infra: dict[str, list[Any]]) -> None:
     result = run_full_pipeline(_config())
 
     assert "showcase-agent" in result.report_markdown
@@ -133,17 +154,17 @@ def test_run_full_pipeline_generates_a_report(_patch_infra: dict) -> None:
     assert "Selected" in result.backend_justification
 
 
-def test_run_full_pipeline_records_trial_history(_patch_infra: dict) -> None:
+def test_run_full_pipeline_records_trial_history(_patch_infra: dict[str, list[Any]]) -> None:
     result = run_full_pipeline(_config(search_budget_trials=4))
 
     assert len(result.trials) == 4
     assert all(t.feasible for t in result.trials)  # synthetic model always passes SLA/accuracy
 
 
-def test_run_full_pipeline_reports_stage_events(_patch_infra: dict) -> None:
+def test_run_full_pipeline_reports_stage_events(_patch_infra: dict[str, list[Any]]) -> None:
     events: list[tuple[str, str]] = []
 
-    def record(stage: str, status: str, extra: dict) -> None:
+    def record(stage: str, status: str, extra: dict[str, Any]) -> None:
         events.append((stage, status))
 
     run_full_pipeline(_config(search_budget_trials=2), on_event=record)
@@ -172,7 +193,7 @@ def test_run_full_pipeline_reports_stage_events(_patch_infra: dict) -> None:
 
 
 def test_run_full_pipeline_runs_analysis_when_source_path_given(
-    _patch_infra: dict, tmp_path: Path
+    _patch_infra: dict[str, list[Any]], tmp_path: Path
 ) -> None:
     (tmp_path / "Dockerfile").write_text("FROM nvidia/cuda:12.4.0\n", encoding="utf-8")
 
@@ -183,9 +204,9 @@ def test_run_full_pipeline_runs_analysis_when_source_path_given(
 
 
 def test_run_full_pipeline_raises_when_no_feasible_trial(
-    _patch_infra: dict, monkeypatch: pytest.MonkeyPatch
+    _patch_infra: dict[str, list[Any]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def always_infeasible(ctx, config):
+    async def always_infeasible(ctx: RemoteTrialContext, config: TrialConfig) -> BenchmarkResult:
         result = await _fake_deploy_and_benchmark(ctx, config)
         result.accuracy_score = 0.1  # below any reasonable floor
         return result

@@ -7,6 +7,19 @@ requires-python = ">=3.11"
 [tool.uv.workspace]
 members = ["packages/core", "packages/api", "packages/agent"]
 
+[dependency-groups]
+# ruff/mypy are configured below but were never actually declared as installable
+# dependencies anywhere in the workspace (only each package's own pytest dev-group
+# was) - `uv sync --all-packages` silently never installed them, which is exactly
+# why CI's Lint step has been failing with "Failed to spawn: ruff" since this
+# workflow was first added. They only "worked" locally because of an ambient
+# install on this dev machine outside the project's own dependency graph.
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-jsonschema>=4.26.0.20260518",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
@@ -21,3 +34,9 @@ ignore = ["B008"]
 python_version = "3.11"
 strict = true
 warn_unused_ignores = true
+
+# Neither ships type stubs and neither has a real types-* package on PyPI (unlike
+# jsonschema, which does - see the dev dependency group above).
+[[tool.mypy.overrides]]
+module = ["fabric.*", "llmcompressor.*"]
+ignore_missing_imports = true

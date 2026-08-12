@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -21,7 +21,7 @@ class RetrievedChunk(BaseModel):
 class StageTrace(BaseModel):
     stage: str
     duration_ms: float
-    metadata: dict = {}
+    metadata: dict[str, Any] = {}
 
 
 class PipelineResult(BaseModel):

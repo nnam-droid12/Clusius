@@ -10,7 +10,12 @@ dev:
 	cd packages/web && npm run dev
 
 test:
-	uv run pytest packages/core/tests packages/api/tests packages/agent/tests
+	# Each package's tests/ directory is its own "tests" package with no shared
+	# namespace - one combined pytest invocation across all three collides on that
+	# name (ImportPathMismatchError), so each package runs as its own invocation.
+	uv run pytest packages/core/tests
+	uv run pytest packages/api/tests
+	uv run pytest packages/agent/tests
 	cd packages/web && npm run test
 
 lint:
@@ -18,7 +23,11 @@ lint:
 	cd packages/web && npm run lint
 
 typecheck:
-	uv run mypy packages/core packages/api packages/agent
+	# Same cross-package "tests" name collision as the test target above, but for
+	# mypy's own module resolution - each package is checked separately.
+	uv run mypy packages/core
+	uv run mypy packages/api
+	uv run mypy packages/agent
 	cd packages/web && npm run typecheck
 
 fmt:

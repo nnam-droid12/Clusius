@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 import pytest
 from clusius_core.migrate.deploy import (
@@ -36,8 +38,8 @@ class FakeRunner:
         self.puts.append((local_path, remote_path))
 
 
-def _trial_config(**overrides) -> TrialConfig:
-    defaults = dict(
+def _trial_config(**overrides: Any) -> TrialConfig:
+    defaults: dict[str, Any] = dict(
         backend="llamacpp",
         quant="Q4_K_M",
         threads=4,
@@ -137,7 +139,7 @@ async def test_wait_for_health_returns_when_healthy(monkeypatch: pytest.MonkeyPa
     transport = httpx.MockTransport(handler)
     real_client = httpx.AsyncClient
 
-    def fake_client(*args, **kwargs):
+    def fake_client(*args: Any, **kwargs: Any) -> httpx.AsyncClient:
         return real_client(transport=transport)
 
     monkeypatch.setattr(httpx, "AsyncClient", fake_client)
@@ -154,7 +156,7 @@ async def test_wait_for_health_times_out_when_never_healthy(
     transport = httpx.MockTransport(handler)
     real_client = httpx.AsyncClient
 
-    def fake_client(*args, **kwargs):
+    def fake_client(*args: Any, **kwargs: Any) -> httpx.AsyncClient:
         return real_client(transport=transport)
 
     monkeypatch.setattr(httpx, "AsyncClient", fake_client)

@@ -10,12 +10,13 @@ from __future__ import annotations
 from datetime import timedelta
 
 from arq.connections import RedisSettings
+from arq.typing import WorkerSettingsBase
 
 from clusius_api.jobs.tasks import run_pipeline
 from clusius_api.settings import ApiSettings
 
 
-class WorkerSettings:
+class WorkerSettings(WorkerSettingsBase):
     functions = [run_pipeline]
     redis_settings = RedisSettings.from_dsn(ApiSettings().redis_url)
     # The full SSH pipeline drives a single shared C4A + x86 VM pair — two runs

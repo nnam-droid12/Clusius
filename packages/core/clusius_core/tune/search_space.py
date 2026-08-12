@@ -4,6 +4,7 @@ per-trial config Optuna samples from it."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import cast
 
 import optuna
 
@@ -38,15 +39,20 @@ def quants_for_backend(space: SearchSpace, backend: Backend) -> list[str]:
 
 
 def suggest_trial(trial: optuna.Trial, space: SearchSpace) -> TrialConfig:
-    backend: Backend = trial.suggest_categorical("backend", space.backends)
+    # Optuna's own stubs type suggest_categorical's return as the broad union of
+    # possible choice types, not the specific Literal we sample from — a cast, not a
+    # real type hole, since `space.backends`/`space.kv_cache_precisions` are themselves
+    # typed to only ever contain valid Backend/KVCachePrecision values.
+    backend = cast(Backend, trial.suggest_categorical("backend", space.backends))
     # Quant choices are backend-conditional, so they get a per-backend param name —
     # Optuna's standard idiom for a conditional search space.
     quant = trial.suggest_categorical(f"quant_{backend}", quants_for_backend(space, backend))
     threads = trial.suggest_categorical("threads", space.threads)
     core_pinning = trial.suggest_categorical("core_pinning", space.core_pinning_options)
     batch_size = trial.suggest_categorical("batch_size", space.batch_sizes)
-    kv_cache_precision: KVCachePrecision = trial.suggest_categorical(
-        "kv_cache_precision", space.kv_cache_precisions
+    kv_cache_precision = cast(
+        KVCachePrecision,
+        trial.suggest_categorical("kv_cache_precision", space.kv_cache_precisions),
     )
     context_length = trial.suggest_categorical("context_length", space.context_lengths)
 

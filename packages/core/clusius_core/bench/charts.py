@@ -7,6 +7,7 @@ independent of whether a migration report is ever generated from them.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
@@ -18,7 +19,7 @@ from clusius_core.models import BenchmarkResult
 
 
 def plot_pareto_frontier(
-    trials: list[dict], out_path: Path, winner_index: int | None = None
+    trials: list[dict[str, Any]], out_path: Path, winner_index: int | None = None
 ) -> Path:
     """`trials` is a list of dicts with at least `tokens_per_second`, `cost_per_1m_tokens`,
     and `feasible` keys — the shape produced by summarizing `optuna.trial.FrozenTrial`

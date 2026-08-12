@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from clusius_agent import generator, router
 from clusius_agent.models import RouterDecision
@@ -10,11 +12,11 @@ class FakeMCPClient:
         self.docs_calls: list[str] = []
         self.search_calls: list[str] = []
 
-    async def search_docs(self, query: str, top_k: int = 3) -> list[dict]:
+    async def search_docs(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
         self.docs_calls.append(query)
         return [{"source": "kleidiai.md", "text": "KleidiAI kernel details.", "score": 0.8}]
 
-    async def web_search(self, query: str, max_results: int = 5) -> list[dict]:
+    async def web_search(self, query: str, max_results: int = 5) -> list[dict[str, Any]]:
         self.search_calls.append(query)
         return [{"title": "Result", "url": "https://example.com", "snippet": "snippet text"}]
 
@@ -27,14 +29,18 @@ def pipeline(monkeypatch: pytest.MonkeyPatch) -> tuple[Pipeline, FakeMCPClient]:
 
 
 async def test_direct_route_skips_retrieval(
-    monkeypatch: pytest.MonkeyPatch, pipeline: tuple
+    monkeypatch: pytest.MonkeyPatch, pipeline: tuple[Pipeline, FakeMCPClient]
 ) -> None:
     p, fake_mcp = pipeline
 
-    async def fake_classify(query, settings, client=None):
+    async def fake_classify(
+        query: str, settings: AgentSettings, client: Any = None
+    ) -> RouterDecision:
         return RouterDecision(route="direct", reasoning="general knowledge")
 
-    async def fake_generate(query, retrieved, settings, client=None):
+    async def fake_generate(
+        query: str, retrieved: list[Any], settings: AgentSettings, client: Any = None
+    ) -> str:
         return "42"
 
     monkeypatch.setattr(router, "classify", fake_classify)
@@ -50,14 +56,18 @@ async def test_direct_route_skips_retrieval(
 
 
 async def test_retrieve_docs_route_calls_docs_search(
-    monkeypatch: pytest.MonkeyPatch, pipeline: tuple
+    monkeypatch: pytest.MonkeyPatch, pipeline: tuple[Pipeline, FakeMCPClient]
 ) -> None:
     p, fake_mcp = pipeline
 
-    async def fake_classify(query, settings, client=None):
+    async def fake_classify(
+        query: str, settings: AgentSettings, client: Any = None
+    ) -> RouterDecision:
         return RouterDecision(route="retrieve_docs", reasoning="matches local docs")
 
-    async def fake_generate(query, retrieved, settings, client=None):
+    async def fake_generate(
+        query: str, retrieved: list[Any], settings: AgentSettings, client: Any = None
+    ) -> str:
         assert len(retrieved) == 1
         return "grounded answer"
 
@@ -73,14 +83,18 @@ async def test_retrieve_docs_route_calls_docs_search(
 
 
 async def test_web_search_route_calls_web_search(
-    monkeypatch: pytest.MonkeyPatch, pipeline: tuple
+    monkeypatch: pytest.MonkeyPatch, pipeline: tuple[Pipeline, FakeMCPClient]
 ) -> None:
     p, fake_mcp = pipeline
 
-    async def fake_classify(query, settings, client=None):
+    async def fake_classify(
+        query: str, settings: AgentSettings, client: Any = None
+    ) -> RouterDecision:
         return RouterDecision(route="web_search", reasoning="needs current info")
 
-    async def fake_generate(query, retrieved, settings, client=None):
+    async def fake_generate(
+        query: str, retrieved: list[Any], settings: AgentSettings, client: Any = None
+    ) -> str:
         return "web-grounded answer"
 
     monkeypatch.setattr(router, "classify", fake_classify)

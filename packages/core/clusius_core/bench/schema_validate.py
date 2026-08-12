@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import jsonschema
 
@@ -16,8 +17,9 @@ _SCHEMA_PATH = _REPO_ROOT / "bench" / "schema" / "result.schema.json"
 
 
 @lru_cache(maxsize=1)
-def _load_schema() -> dict:
-    return json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
+def _load_schema() -> dict[str, Any]:
+    result: dict[str, Any] = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
+    return result
 
 
 def validate_result(result: BenchmarkResult) -> None:

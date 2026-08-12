@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from clusius_api.db.models import Artifact, Result, Run, Trial, Workload
@@ -9,7 +10,7 @@ from clusius_api.jobs.tasks import run_pipeline
 from clusius_api.settings import ApiSettings
 from clusius_core.analyze.scanner import AnalysisReport, Finding
 from clusius_core.models import BenchmarkResult, LatencyPercentiles, ThroughputMetrics
-from clusius_core.pipeline import PipelineResult, TrialSummary
+from clusius_core.pipeline import PipelineConfig, PipelineResult, StageEvent, TrialSummary
 from clusius_core.tune.search_space import TrialConfig
 from sqlalchemy import select
 
@@ -25,7 +26,7 @@ class FakeRedis:
 
 
 def _ssh_configured_settings() -> ApiSettings:
-    return ApiSettings(
+    return ApiSettings(  # type: ignore[call-arg]
         _env_file=None,
         target_arm_host="10.0.0.1",
         target_arm_user="clusius",
@@ -35,11 +36,11 @@ def _ssh_configured_settings() -> ApiSettings:
 
 
 def _no_ssh_settings() -> ApiSettings:
-    return ApiSettings(_env_file=None)
+    return ApiSettings(_env_file=None)  # type: ignore[call-arg]
 
 
-def _bench_result(**overrides) -> BenchmarkResult:
-    defaults = dict(
+def _bench_result(**overrides: Any) -> BenchmarkResult:
+    defaults: dict[str, Any] = dict(
         run_id="r",
         timestamp=datetime.now(UTC),
         commit_sha="abc123",
@@ -133,7 +134,7 @@ def _isolate_session(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_run_pipeline_uses_full_ssh_path_when_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fake_run_full_pipeline(config, on_event):
+    def fake_run_full_pipeline(config: PipelineConfig, on_event: StageEvent) -> PipelineResult:
         on_event("analyze", "running", {})
         on_event("analyze", "completed", {"blocker_count": 1})
         on_event(
@@ -167,6 +168,7 @@ async def test_run_pipeline_uses_full_ssh_path_when_configured(
 
     async with TestSessionLocal() as session:
         run = await session.get(Run, run_id)
+        assert run is not None
         assert run.status == "completed"
         assert run.stage == "done"
         assert run.selected_backend == "llamacpp"
@@ -199,13 +201,14 @@ async def test_run_pipeline_falls_back_to_analyze_only_when_ssh_not_configured()
 
     async with TestSessionLocal() as session:
         run = await session.get(Run, run_id)
+        assert run is not None
         assert run.status == "completed"
         assert run.stage == "done"
         assert run.selected_backend is None
 
 
 async def test_run_pipeline_marks_run_failed_on_exception(monkeypatch: pytest.MonkeyPatch) -> None:
-    def failing_pipeline(config, on_event):
+    def failing_pipeline(config: PipelineConfig, on_event: StageEvent) -> PipelineResult:
         on_event("analyze", "running", {})
         raise RuntimeError("SSH connection refused")
 
@@ -218,5 +221,7 @@ async def test_run_pipeline_marks_run_failed_on_exception(monkeypatch: pytest.Mo
 
     async with TestSessionLocal() as session:
         run = await session.get(Run, run_id)
+        assert run is not None
         assert run.status == "failed"
+        assert run.error_message is not None
         assert "SSH connection refused" in run.error_message
