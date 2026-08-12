@@ -51,6 +51,11 @@ class Run(Base):
     sla_accuracy_floor: Mapped[float] = mapped_column(Float)
     cost_ceiling_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     search_budget_trials: Mapped[int] = mapped_column(Integer, default=20)
+    # llama.cpp+KleidiAI favors low-concurrency/single-stream; vLLM's continuous
+    # batching favors high-concurrency - every real run so far used the default (2),
+    # which is exactly the regime that favors llama.cpp and is why vLLM had never even
+    # been sampled by the search, let alone won a trial.
+    concurrency: Mapped[int] = mapped_column(Integer, default=2)
 
     target_base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     target_instance_type: Mapped[str | None] = mapped_column(String(64), nullable=True)

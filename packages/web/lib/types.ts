@@ -12,6 +12,7 @@ export interface RunCreateInput {
   sla_accuracy_floor: number;
   cost_ceiling_usd?: number;
   search_budget_trials?: number;
+  concurrency?: number;
   target_base_url?: string;
   target_instance_type?: string;
   target_arch?: Arch;
@@ -28,6 +29,7 @@ export interface Run {
   sla_accuracy_floor: number;
   cost_ceiling_usd: number | null;
   search_budget_trials: number;
+  concurrency: number;
   selected_backend: Backend | null;
   error_message: string | null;
   created_at: string;

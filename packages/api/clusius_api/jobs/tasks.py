@@ -137,6 +137,7 @@ async def _run_full_ssh_pipeline(
         sla_p95_latency_ms=run.sla_p95_latency_ms,
         sla_accuracy_floor=run.sla_accuracy_floor,
         search_budget_trials=run.search_budget_trials,
+        concurrency=run.concurrency,
         commit_sha=_current_commit_sha(),
         prompts=DEFAULT_BENCH_PROMPTS,
     )

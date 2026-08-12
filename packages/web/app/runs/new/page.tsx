@@ -15,6 +15,7 @@ const initialState: RunCreateInput = {
   sla_p95_latency_ms: 2000,
   sla_accuracy_floor: 0.9,
   search_budget_trials: 20,
+  concurrency: 2,
   target_base_url: "",
 };
 
@@ -103,15 +104,30 @@ export default function NewRunPage() {
             </Field>
           </div>
 
-          <Field label="Search budget (trials)">
-            <input
-              type="number"
-              required
-              value={form.search_budget_trials}
-              onChange={(e) => update("search_budget_trials", Number(e.target.value))}
-              className="input"
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Search budget (trials)">
+              <input
+                type="number"
+                required
+                value={form.search_budget_trials}
+                onChange={(e) => update("search_budget_trials", Number(e.target.value))}
+                className="input"
+              />
+            </Field>
+            <Field
+              label="Concurrency"
+              hint="Low favors llama.cpp+KleidiAI; high favors vLLM's continuous batching."
+            >
+              <input
+                type="number"
+                min={1}
+                required
+                value={form.concurrency}
+                onChange={(e) => update("concurrency", Number(e.target.value))}
+                className="input"
+              />
+            </Field>
+          </div>
 
           <Field
             label="Target endpoint (optional)"

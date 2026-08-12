@@ -34,6 +34,7 @@ async def create_run(payload: RunCreate, session: AsyncSession = Depends(get_ses
         sla_accuracy_floor=payload.sla_accuracy_floor,
         cost_ceiling_usd=payload.cost_ceiling_usd,
         search_budget_trials=payload.search_budget_trials,
+        concurrency=payload.concurrency,
         target_base_url=payload.target_base_url,
         target_instance_type=payload.target_instance_type,
         target_arch=payload.target_arch,

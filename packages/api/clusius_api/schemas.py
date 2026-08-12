@@ -18,6 +18,11 @@ class RunCreate(BaseModel):
     sla_accuracy_floor: float
     cost_ceiling_usd: float | None = None
     search_budget_trials: int = 20
+    # llama.cpp+KleidiAI favors low-concurrency/single-stream; vLLM's continuous
+    # batching favors high-concurrency batched throughput — the tuner probes both
+    # backends against whichever value is set here, so this is the one knob that
+    # actually shapes which backend has a real chance of winning.
+    concurrency: int = 2
     # If set, the pipeline job benchmarks this live OpenAI-compatible endpoint as
     # part of the run. Left unset, the run only performs the (infra-free) analyze
     # stage — Clusius never fabricates a benchmark result for an endpoint it wasn't
@@ -40,6 +45,7 @@ class RunOut(BaseModel):
     sla_accuracy_floor: float
     cost_ceiling_usd: float | None
     search_budget_trials: int
+    concurrency: int
     selected_backend: str | None
     error_message: str | None
     created_at: datetime
