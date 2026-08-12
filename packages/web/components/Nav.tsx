@@ -16,6 +16,9 @@ export function Nav() {
           <Link href="/results" className="hover:text-primary">
             Results
           </Link>
+          <Link href="/savings" className="hover:text-primary">
+            Savings
+          </Link>
           <Link href="/runs/new" className="hover:text-primary">
             Launch a run
           </Link>

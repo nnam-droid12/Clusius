@@ -1,4 +1,4 @@
-import type { BenchmarkResult } from "./types";
+import type { BenchmarkResult, RunSummary } from "./types";
 
 export function costDeltaPct(baseline: BenchmarkResult, winner: BenchmarkResult): number {
   return (
@@ -31,4 +31,40 @@ export function fmt(n: number, digits = 1): string {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
+}
+
+export interface ComparableRun {
+  run: RunSummary;
+  baseline: BenchmarkResult;
+  winner: BenchmarkResult;
+  throughputPct: number;
+  latencyPct: number;
+  /** null when the baseline has no configured $/hr — "not priced," not "free." */
+  costPct: number | null;
+}
+
+function findResult(run: RunSummary, kind: string): BenchmarkResult | undefined {
+  return run.results.find((r) => r.kind === kind)?.result_json;
+}
+
+/** Every completed run with a full baseline-vs-winner comparison, sorted by measured
+ * throughput gain descending — the one place this filter+shape logic lives, since both
+ * the results gallery and the savings calculator need exactly the same real rows. */
+export function comparableRuns(results: RunSummary[]): ComparableRun[] {
+  return results
+    .map((run): ComparableRun | null => {
+      const baseline = findResult(run, "baseline_x86");
+      const winner = findResult(run, "arm_winner");
+      if (!baseline || !winner) return null;
+      return {
+        run,
+        baseline,
+        winner,
+        throughputPct: throughputDeltaPct(baseline, winner),
+        latencyPct: latencyReductionPct(baseline, winner),
+        costPct: baseline.cost_per_1m_tokens > 0 ? costDeltaPct(baseline, winner) : null,
+      };
+    })
+    .filter((row): row is ComparableRun => row !== null)
+    .sort((a, b) => b.throughputPct - a.throughputPct);
 }

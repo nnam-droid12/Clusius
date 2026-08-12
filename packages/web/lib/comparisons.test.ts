@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { costDeltaPct, dollarsSavedPer1M, fmt } from "./comparisons";
-import type { BenchmarkResult } from "./types";
+import { comparableRuns, costDeltaPct, dollarsSavedPer1M, fmt } from "./comparisons";
+import type { BenchmarkResult, RunSummary } from "./types";
 
 function result(overrides: Partial<BenchmarkResult>): BenchmarkResult {
   return {
@@ -22,6 +22,25 @@ function result(overrides: Partial<BenchmarkResult>): BenchmarkResult {
     latency_ms: { ttft_p50: 50, p50: 400, p95: 700, p99: 900 },
     cost_per_1m_tokens: 1.5,
     accuracy_score: 0.95,
+    ...overrides,
+  };
+}
+
+function run(
+  id: string,
+  results: { kind: string; result_json: BenchmarkResult }[],
+  overrides: Partial<RunSummary> = {}
+): RunSummary {
+  return {
+    id,
+    status: "completed",
+    target_mode: "target",
+    selected_backend: "llamacpp",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    workload_name: "showcase-agent",
+    model_ref: "qwen2.5-7b-instruct",
+    results: results.map((r, i) => ({ id: `${id}-r${i}`, created_at: "2026-01-01T00:00:00Z", ...r })),
     ...overrides,
   };
 }
@@ -48,6 +67,50 @@ describe("dollarsSavedPer1M", () => {
     const winner = result({ cost_per_1m_tokens: 1.5 });
 
     expect(dollarsSavedPer1M(baseline, winner)).toBeCloseTo(2.5, 5);
+  });
+});
+
+describe("comparableRuns", () => {
+  it("excludes runs missing a baseline or a winner result", () => {
+    const complete = run("a", [
+      { kind: "baseline_x86", result_json: result({ throughput: { tokens_per_second: 30, requests_per_second: 1 } }) },
+      { kind: "arm_winner", result_json: result({ throughput: { tokens_per_second: 90, requests_per_second: 1 } }) },
+    ]);
+    const baselineOnly = run("b", [
+      { kind: "baseline_x86", result_json: result({}) },
+    ]);
+    const noResults = run("c", []);
+
+    const rows = comparableRuns([complete, baselineOnly, noResults]);
+
+    expect(rows.map((r) => r.run.id)).toEqual(["a"]);
+  });
+
+  it("sorts by throughput gain descending", () => {
+    const small = run("small", [
+      { kind: "baseline_x86", result_json: result({ throughput: { tokens_per_second: 50, requests_per_second: 1 } }) },
+      { kind: "arm_winner", result_json: result({ throughput: { tokens_per_second: 60, requests_per_second: 1 } }) },
+    ]);
+    const big = run("big", [
+      { kind: "baseline_x86", result_json: result({ throughput: { tokens_per_second: 30, requests_per_second: 1 } }) },
+      { kind: "arm_winner", result_json: result({ throughput: { tokens_per_second: 120, requests_per_second: 1 } }) },
+    ]);
+
+    const rows = comparableRuns([small, big]);
+
+    expect(rows.map((r) => r.run.id)).toEqual(["big", "small"]);
+  });
+
+  it("reports costPct as null instead of a fake number when the baseline is unpriced", () => {
+    const unpriced = run("unpriced", [
+      { kind: "baseline_x86", result_json: result({ cost_per_1m_tokens: 0 }) },
+      { kind: "arm_winner", result_json: result({ cost_per_1m_tokens: 0 }) },
+    ]);
+
+    const rows = comparableRuns([unpriced]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.costPct).toBeNull();
   });
 });
 

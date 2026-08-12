@@ -3,52 +3,31 @@
 import Link from "next/link";
 
 import { Nav } from "@/components/Nav";
-import { fmt, latencyReductionPct, throughputDeltaPct } from "@/lib/comparisons";
+import { comparableRuns, fmt } from "@/lib/comparisons";
 import { useResults } from "@/lib/hooks";
-import type { BenchmarkResult, RunSummary } from "@/lib/types";
-
-function findResult(run: RunSummary, kind: string): BenchmarkResult | undefined {
-  return run.results.find((r) => r.kind === kind)?.result_json;
-}
-
-interface ComparableRow {
-  run: RunSummary;
-  baseline: BenchmarkResult;
-  winner: BenchmarkResult;
-  throughputPct: number;
-  latencyPct: number;
-}
 
 export default function ResultsGalleryPage() {
   const { data: results, isLoading, error } = useResults();
 
-  const rows: ComparableRow[] = (results ?? [])
-    .map((run) => {
-      const baseline = findResult(run, "baseline_x86");
-      const winner = findResult(run, "arm_winner");
-      if (!baseline || !winner) return null;
-      return {
-        run,
-        baseline,
-        winner,
-        throughputPct: throughputDeltaPct(baseline, winner),
-        latencyPct: latencyReductionPct(baseline, winner),
-      };
-    })
-    .filter((row): row is ComparableRow => row !== null)
-    .sort((a, b) => b.throughputPct - a.throughputPct);
-
+  const rows = comparableRuns(results ?? []);
   const incomplete = (results ?? []).length - rows.length;
 
   return (
     <div className="min-h-screen">
       <Nav />
       <div className="mx-auto max-w-5xl px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Results gallery</h1>
-        <p className="mt-1 text-sm text-secondary">
-          Every completed migration Clusius has run, real and independently checkable — not one
-          cherry-picked demo. Sorted by measured throughput gain.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Results gallery</h1>
+            <p className="mt-1 text-sm text-secondary">
+              Every completed migration Clusius has run, real and independently checkable — not
+              one cherry-picked demo. Sorted by measured throughput gain.
+            </p>
+          </div>
+          <Link href="/savings" className="text-sm font-medium text-series-1 hover:underline">
+            Savings calculator →
+          </Link>
+        </div>
 
         {isLoading && <p className="mt-8 text-secondary">Loading results…</p>}
         {error && (
@@ -78,7 +57,7 @@ export default function ResultsGalleryPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ run, baseline, winner, throughputPct, latencyPct }) => (
+                {rows.map(({ run, baseline, winner, throughputPct, latencyPct, costPct }) => (
                   <tr key={run.id} className="border-t border-border hover:bg-surface">
                     <td className="px-4 py-3">
                       <div className="font-medium text-primary">{run.model_ref}</div>
@@ -95,16 +74,8 @@ export default function ResultsGalleryPage() {
                       <span className="font-medium text-good">−{fmt(latencyPct)}%</span>
                     </td>
                     <td className="tabular-nums px-4 py-3">
-                      {baseline.cost_per_1m_tokens > 0 ? (
-                        <span className="font-medium text-good">
-                          −
-                          {fmt(
-                            ((baseline.cost_per_1m_tokens - winner.cost_per_1m_tokens) /
-                              baseline.cost_per_1m_tokens) *
-                              100
-                          )}
-                          %
-                        </span>
+                      {costPct !== null ? (
+                        <span className="font-medium text-good">+{fmt(costPct)}%</span>
                       ) : (
                         <span className="text-muted">not priced</span>
                       )}
