@@ -93,26 +93,45 @@ export default function SavingsCalculatorPage() {
                 value={monthlySpend}
                 onChange={(e) => setMonthlySpend(Math.max(0, Number(e.target.value) || 0))}
               />
+              <p className="mt-2 text-xs text-muted">
+                Changing this only moves the three dollar figures below — cost scales with your
+                volume. Throughput doesn&apos;t: it&apos;s the fixed, real result the selected run
+                above measured, not something that gets bigger or smaller based on spend.
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatTile
-                label="Projected Arm cost / mo"
-                value={projectedCost !== null ? `$${fmt(projectedCost, 0)}` : "—"}
-                accent="series-1"
-              />
-              <StatTile
-                label="Saved / month"
-                value={savedPerMonth !== null ? `$${fmt(savedPerMonth, 0)}` : "—"}
-              />
-              <StatTile
-                label="Saved / year"
-                value={savedPerMonth !== null ? `$${fmt(savedPerMonth * 12, 0)}` : "—"}
-              />
-              <StatTile
-                label="Throughput gain (this run)"
-                value={`+${fmt(selected.throughputPct)}%`}
-              />
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                Scales with your spend, above
+              </p>
+              <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <StatTile
+                  label="Projected Arm cost / mo"
+                  value={projectedCost !== null ? `$${fmt(projectedCost, 0)}` : "—"}
+                  accent="series-1"
+                />
+                <StatTile
+                  label="Saved / month"
+                  value={savedPerMonth !== null ? `$${fmt(savedPerMonth, 0)}` : "—"}
+                />
+                <StatTile
+                  label="Saved / year"
+                  value={savedPerMonth !== null ? `$${fmt(savedPerMonth * 12, 0)}` : "—"}
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                Fixed — from the selected run, not your spend
+              </p>
+              <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <StatTile
+                  label="Throughput gain (this run)"
+                  value={`+${fmt(selected.throughputPct)}%`}
+                  accent="series-1"
+                />
+              </div>
             </div>
 
             <p className="text-xs text-muted">
