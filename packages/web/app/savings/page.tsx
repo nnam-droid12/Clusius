@@ -109,7 +109,10 @@ export default function SavingsCalculatorPage() {
                 label="Saved / year"
                 value={savedPerMonth !== null ? `$${fmt(savedPerMonth * 12, 0)}` : "—"}
               />
-              <StatTile label="Throughput" value={`${fmt(selected.throughputPct)}%`} />
+              <StatTile
+                label="Throughput gain (this run)"
+                value={`+${fmt(selected.throughputPct)}%`}
+              />
             </div>
 
             <p className="text-xs text-muted">
