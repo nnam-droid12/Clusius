@@ -7,14 +7,17 @@ import { Nav } from "@/components/Nav";
 import { useCreateRun } from "@/lib/hooks";
 import type { RunCreateInput } from "@/lib/types";
 
+// Matches configs/demo-run.qwen.json exactly — the same config behind the committed
+// headline result — so clicking "Launch a run" with the defaults untouched reproduces
+// a real, known-working run instead of failing on an invalid placeholder model_ref.
 const initialState: RunCreateInput = {
-  workload_name: "showcase-agent",
-  model_ref: "qwen2.5-7b-instruct",
+  workload_name: "real-e2e-validation",
+  model_ref: "Qwen/Qwen2.5-0.5B-Instruct",
   source_path: "",
   target_mode: "target",
-  sla_p95_latency_ms: 2000,
-  sla_accuracy_floor: 0.9,
-  search_budget_trials: 20,
+  sla_p95_latency_ms: 30000,
+  sla_accuracy_floor: 0.5,
+  search_budget_trials: 4,
   concurrency: 2,
   target_base_url: "",
 };
