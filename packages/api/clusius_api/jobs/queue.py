@@ -15,7 +15,12 @@ _pool: ArqRedis | None = None
 
 
 def redis_settings_from_url(redis_url: str) -> RedisSettings:
-    return RedisSettings.from_dsn(redis_url)
+    # See the matching comment in jobs/worker.py - arq's 1s default conn_timeout is
+    # too tight for a real TLS handshake to a remote managed Redis from Cloud Run.
+    settings = RedisSettings.from_dsn(redis_url)
+    settings.conn_timeout = 10
+    settings.conn_retries = 10
+    return settings
 
 
 async def get_arq_pool(settings: ApiSettings | None = None) -> ArqRedis:
